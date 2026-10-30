@@ -20,11 +20,11 @@ Text labels are left alone. You can change any of the four colors in the task pa
 **This is not VBA.** It's a modern Office add-in written in JavaScript. All the heavy work (tracing, finding every number and formula) runs inside Excel's own calculation engine. That's why it can handle sheets VBA macros choke on.
 
 ### Windows (Microsoft 365)
-1. Download **[Install-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/releases/latest/download/Install-Windows.cmd)** and double-click it.
-   - If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. The script is 30 lines: you can read it [here](install/Install-Windows.cmd).
+1. Open **[Install-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Install-Windows.cmd)**, click the **Download raw file** button (↓, top right of the file), then double-click the downloaded file.
+   - If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. The script is about 30 lines, and you can read it on that page.
 2. Close Excel completely and reopen it. The **Trace & Color** tab is on the ribbon.
 
-To remove it, run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/releases/latest/download/Uninstall-Windows.cmd).
+To remove it, download and run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Uninstall-Windows.cmd) the same way.
 
 ### Mac (Microsoft 365)
 Open **Terminal**, paste this line, press Enter, then restart Excel:
@@ -33,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/serra-verdaguer/excel-trace-color/m
 ```
 
 ### Excel on the web, or as an alternative on any platform
-Download [`manifest.xml`](https://github.com/serra-verdaguer/excel-trace-color/releases/latest/download/manifest.xml), then in Excel go to `Home` → `Add-ins` → `More Add-ins` → `My Add-ins` → **`Upload My Add-in`**.
+Download [`manifest.xml`](https://github.com/serra-verdaguer/excel-trace-color/blob/main/manifest.xml) (↓ button), then in Excel go to `Home` → `Add-ins` → `More Add-ins` → `My Add-ins` → **`Upload My Add-in`**.
 
 ### Whole company, zero clicks per person
 An IT admin uploads `manifest.xml` once in **Microsoft 365 admin center → Settings → Integrated apps → Upload custom apps**. The tab then appears for everyone automatically.
