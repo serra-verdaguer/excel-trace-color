@@ -1,0 +1,14 @@
+{
+  "actions": [
+    { "id": "tracePrecedents", "type": "ExecuteFunction", "name": "Trace precedents" },
+    { "id": "traceDependents", "type": "ExecuteFunction", "name": "Trace dependents" },
+    { "id": "colorCode", "type": "ExecuteFunction", "name": "Color code sheet or selection" },
+    { "id": "showPane", "type": "ExecuteFunction", "name": "Show trace pane" }
+  ],
+  "shortcuts": [
+    { "action": "tracePrecedents", "key": { "default": "Ctrl+Alt+Shift+P", "mac": "Command+Option+Shift+P" } },
+    { "action": "traceDependents", "key": { "default": "Ctrl+Alt+Shift+D", "mac": "Command+Option+Shift+D" } },
+    { "action": "colorCode", "key": { "default": "Ctrl+Alt+Shift+C", "mac": "Command+Option+Shift+C" } },
+    { "action": "showPane", "key": { "default": "Ctrl+Alt+Shift+T", "mac": "Command+Option+Shift+T" } }
+  ]
+}

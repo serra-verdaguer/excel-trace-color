@@ -1,0 +1,116 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1f1f1f;
+  --muted: #6b6b6b;
+  --line: #e1e1e1;
+  --hover: #f3f6f4;
+  --accent: #107c41; /* Excel green */
+  --accent-fg: #ffffff;
+  --err: #c42b1c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1f1f;
+    --fg: #f0f0f0;
+    --muted: #a0a0a0;
+    --line: #3a3a3a;
+    --hover: #2a302c;
+    --accent: #3fae6a;
+    --accent-fg: #0d0d0d;
+    --err: #ff8a7a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font: 13px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+button:hover { background: var(--hover); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.link { border: none; padding: 0; color: var(--accent); text-decoration: underline; background: none; }
+button.small { font-size: 12px; }
+button:disabled { opacity: 0.5; cursor: progress; }
+.muted { color: var(--muted); }
+
+.bar, .actions, .filterbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+.bar { justify-content: space-between; border-bottom: 1px solid var(--line); }
+.origin { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+#originBtn { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.toggle { display: flex; gap: 4px; align-items: center; color: var(--muted); }
+.actions { flex-wrap: wrap; }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 4px 0 0 4px; }
+.seg button:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+.seg button.on { background: var(--hover); border-color: var(--accent); font-weight: 600; }
+.seg button.on + button { border-left: 1px solid var(--accent); }
+#traceBtn { margin-left: auto; }
+.filterbar { padding-top: 0; }
+#filter {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 8px;
+}
+#summary { white-space: nowrap; font-size: 12px; }
+
+main { flex: 1; overflow: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.empty { padding: 16px 12px; color: var(--muted); }
+.error { padding: 12px; color: var(--err); }
+.group > summary {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.group > summary .count { color: var(--muted); font-weight: 400; margin-left: auto; }
+.row {
+  display: grid;
+  grid-template-columns: 18px minmax(70px, auto) 1fr;
+  gap: 6px;
+  align-items: baseline;
+  padding: 3px 12px 3px calc(12px + var(--depth, 0) * 14px);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+.row:hover { background: var(--hover); }
+.row .exp { color: var(--muted); border: none; padding: 0; width: 18px; text-align: center; }
+.row .addr { font-family: Consolas, "Cascadia Mono", monospace; font-weight: 600; }
+.row .detail { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.row .detail b { color: var(--fg); font-weight: 400; }
+.children:empty { display: none; }
+.more { margin: 6px 12px; }
+
+.color { padding: 10px 12px; }
+.color-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.color h2 { font-size: 13px; margin: 0 auto 0 0; }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 8px; font-size: 12px; }
+.legend label { display: flex; align-items: center; gap: 6px; }
+.legend input[type="color"] { width: 22px; height: 18px; padding: 0; border: 1px solid var(--line); background: none; }
+.status { padding: 6px 12px; font-size: 12px; min-height: 28px; }
+.status.err { color: var(--err); }

@@ -1,0 +1,13 @@
+{
+  "name": "excel-trace-color",
+  "version": "1.0.0",
+  "description": "Excel add-in: trace precedents/dependents on huge workbooks and one-click financial color coding.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "npx --yes http-server addin -p 3000 -S",
+    "validate": "npx --yes office-addin-manifest validate manifest.xml",
+    "set-url": "node scripts/set-base-url.js"
+  }
+}

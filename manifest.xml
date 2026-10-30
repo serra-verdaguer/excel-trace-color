@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+           xsi:type="TaskPaneApp">
+  <Id>226f2a76-31d8-4adc-95c6-053ff2729ee0</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>serra-verdaguer</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Trace &amp; Color"/>
+  <Description DefaultValue="Trace precedents and dependents on huge workbooks, and color-code inputs, formulas and links in one click."/>
+  <IconUrl DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-64.png"/>
+  <SupportUrl DefaultValue="https://github.com/serra-verdaguer/excel-trace-color"/>
+  <AppDomains>
+    <AppDomain>https://serra-verdaguer.github.io</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.1">
+      <Set Name="SharedRuntime" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/taskpane.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <Runtimes>
+          <Runtime resid="Taskpane.Url" lifetime="long"/>
+        </Runtimes>
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="LearnMore.Url"/>
+          </GetStarted>
+          <FunctionFile resid="Taskpane.Url"/>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="TC.Tab">
+              <Group id="TC.TraceGroup">
+                <Label resid="TraceGroup.Label"/>
+                <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                <Control xsi:type="Button" id="TC.TracePrecedents">
+                  <Label resid="TracePrecedents.Label"/>
+                  <Supertip><Title resid="TracePrecedents.Title"/><Description resid="TracePrecedents.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>tracePrecedents</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.TraceAllPrecedents">
+                  <Label resid="TraceAllPrecedents.Label"/>
+                  <Supertip><Title resid="TraceAllPrecedents.Title"/><Description resid="TraceAllPrecedents.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>traceAllPrecedents</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.TraceDependents">
+                  <Label resid="TraceDependents.Label"/>
+                  <Supertip><Title resid="TraceDependents.Title"/><Description resid="TraceDependents.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>traceDependents</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.TraceAllDependents">
+                  <Label resid="TraceAllDependents.Label"/>
+                  <Supertip><Title resid="TraceAllDependents.Title"/><Description resid="TraceAllDependents.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>traceAllDependents</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.ShowPane">
+                  <Label resid="ShowPane.Label"/>
+                  <Supertip><Title resid="ShowPane.Label"/><Description resid="ShowPane.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>TC.Pane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+              <Group id="TC.ColorGroup">
+                <Label resid="ColorGroup.Label"/>
+                <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                <Control xsi:type="Button" id="TC.ColorCode">
+                  <Label resid="ColorCode.Label"/>
+                  <Supertip><Title resid="ColorCode.Title"/><Description resid="ColorCode.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>colorCode</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.ColorCodeWorkbook">
+                  <Label resid="ColorCodeWorkbook.Label"/>
+                  <Supertip><Title resid="ColorCodeWorkbook.Title"/><Description resid="ColorCodeWorkbook.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16"/><bt:Image size="32" resid="Icon.32"/><bt:Image size="80" resid="Icon.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>colorCodeWorkbook</FunctionName></Action>
+                </Control>
+              </Group>
+              <Label resid="Tab.Label"/>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-16.png"/>
+        <bt:Image id="Icon.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-32.png"/>
+        <bt:Image id="Icon.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/taskpane.html"/>
+        <bt:Url id="LearnMore.Url" DefaultValue="https://github.com/serra-verdaguer/excel-trace-color"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="Tab.Label" DefaultValue="Trace &amp; Color"/>
+        <bt:String id="TraceGroup.Label" DefaultValue="Trace"/>
+        <bt:String id="ColorGroup.Label" DefaultValue="Format"/>
+        <bt:String id="ShowPane.Label" DefaultValue="Trace Pane"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Trace &amp; Color is ready"/>
+        <bt:String id="TracePrecedents.Label" DefaultValue="Precedents"/>
+        <bt:String id="TracePrecedents.Title" DefaultValue="Trace precedents"/>
+        <bt:String id="TraceAllPrecedents.Label" DefaultValue="All Precedents"/>
+        <bt:String id="TraceAllPrecedents.Title" DefaultValue="Trace all precedents"/>
+        <bt:String id="TraceDependents.Label" DefaultValue="Dependents"/>
+        <bt:String id="TraceDependents.Title" DefaultValue="Trace dependents"/>
+        <bt:String id="TraceAllDependents.Label" DefaultValue="All Dependents"/>
+        <bt:String id="TraceAllDependents.Title" DefaultValue="Trace all dependents"/>
+        <bt:String id="ColorCode.Label" DefaultValue="Color Code"/>
+        <bt:String id="ColorCode.Title" DefaultValue="Color code sheet / selection"/>
+        <bt:String id="ColorCodeWorkbook.Label" DefaultValue="Color Workbook"/>
+        <bt:String id="ColorCodeWorkbook.Title" DefaultValue="Color code workbook"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Open the Trace &amp; Color tab on the ribbon to trace precedents/dependents or color-code your model."/>
+        <bt:String id="ShowPane.Tip" DefaultValue="Open the trace pane: browse, filter and jump to precedents and dependents, drill down level by level."/>
+        <bt:String id="TracePrecedents.Tip" DefaultValue="Lists the cells the selected cell reads from (direct). Ctrl+Alt+Shift+P."/>
+        <bt:String id="TraceAllPrecedents.Tip" DefaultValue="Every cell upstream of the selection, across all levels."/>
+        <bt:String id="TraceDependents.Tip" DefaultValue="Lists the cells that use the selected cell (direct). Ctrl+Alt+Shift+D."/>
+        <bt:String id="TraceAllDependents.Tip" DefaultValue="Every cell downstream of the selection, across all levels."/>
+        <bt:String id="ColorCode.Tip" DefaultValue="Blue = hard-coded inputs, black = formulas, green = links to other sheets, red = links to other workbooks. Applies to the selection if more than one cell is selected, otherwise the whole sheet. Ctrl+Alt+Shift+C."/>
+        <bt:String id="ColorCodeWorkbook.Tip" DefaultValue="Applies the color convention to every sheet in the workbook."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+  <ExtendedOverrides Url="https://serra-verdaguer.github.io/excel-trace-color/addin/shortcuts.json"/>
+</OfficeApp>
