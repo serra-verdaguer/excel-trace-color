@@ -345,6 +345,9 @@
       status("Open this add-in inside Excel.", true);
       return;
     }
+    // Load with Excel from now on, so the tab and keyboard shortcuts are live
+    // without opening the pane first.
+    try { await Office.addin.setStartupBehavior(Office.StartupBehavior.load); } catch (e) { /* older hosts */ }
     try {
       await Excel.run(async (context) => {
         context.workbook.onSelectionChanged.add(onSelectionChanged);
