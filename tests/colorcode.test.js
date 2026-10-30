@@ -35,14 +35,17 @@ function fakeWorkbook(name, grid, opts) {
   opts = opts || {};
   const rows = grid.length, cols = grid[0].length;
   const color = grid.map((r) => r.map(() => null));
+  const fill = grid.map((r) => r.map(() => null));
   const stats = { syncs: 0, maxLoad: 0, specialCalls: 0 };
   let pendingLoads = [];
 
-  const paintRects = (rects) => ({
+  const paintInto = (grid2, rects) => ({
     set color(v) {
-      for (const r of rects) for (let i = r.r0; i <= r.r1; i++) for (let j = r.c0; j <= r.c1; j++) color[i][j] = v;
+      for (const r of rects) for (let i = r.r0; i <= r.r1; i++) for (let j = r.c0; j <= r.c1; j++) grid2[i][j] = v;
     },
   });
+  const paintRects = (rects) => paintInto(color, rects);
+  const fillRects = (rects) => paintInto(fill, rects);
 
   function rangeAreas(rects) {
     return {
@@ -95,7 +98,8 @@ function fakeWorkbook(name, grid, opts) {
     load() {},
     getRangeByIndexes: range,
     getRanges(addr) {
-      return { format: { font: paintRects(addr.split(",").map(parseLocal)) } };
+      const rects = addr.split(",").map(parseLocal);
+      return { format: { font: paintRects(rects), fill: fillRects(rects) } };
     },
   };
   const context = {
@@ -111,10 +115,10 @@ function fakeWorkbook(name, grid, opts) {
       }
     },
   };
-  return { sheet, context, color, stats, used: range(0, 0, rows, cols) };
+  return { sheet, context, color, fill, stats, used: range(0, 0, rows, cols) };
 }
 
-const COLORS = { input: "BLUE", formula: "BLACK", link: "GREEN", external: "RED" };
+const COLORS = { input: "BLUE", formula: "BLACK", link: "GREEN", external: "RED", inputFill: "YELLOW" };
 
 function sampleGrid() {
   return [
@@ -135,6 +139,7 @@ for (const mode of ["fast", "fallback"]) {
     const wb = fakeWorkbook("Model", sampleGrid(), { noSpecialCells: mode === "fallback" });
     const s = await colorRange(wb.context, wb.sheet, wb.used, COLORS);
     assert.deepEqual(wb.color, expected);
+    assert.deepEqual(wb.fill, expected.map((r) => r.map((c) => (c === "BLUE" ? "YELLOW" : null))));
     assert.equal(s.input, 4); // 100, 200, 50 and the typed-in "=60"
     assert.equal(s.formula, 4);
     assert.equal(s.link, 1);
@@ -162,6 +167,13 @@ test("only numbers are coloured: dates, text and text/date formulas stay untouch
       mode
     );
   }
+});
+
+test("input background can be switched off", async () => {
+  const wb = fakeWorkbook("Model", sampleGrid());
+  await colorRange(wb.context, wb.sheet, wb.used, Object.assign({}, COLORS, { inputFill: "" }));
+  assert.deepEqual(wb.color, expected);
+  assert.ok(wb.fill.every((r) => r.every((c) => c === null)));
 });
 
 test("large sheet: chunked reads, payload back-off, compressed painting", async () => {

@@ -4,12 +4,12 @@ Trace **precedents and dependents** in very large workbooks, and **color-code a 
 
 | Color | Meaning |
 |---|---|
-| 🔵 **Blue** | Hard-coded inputs: typed numbers, and "fake formulas" like `=1000` or `=12*1.05` |
+| 🔵 **Blue** on light yellow 🟨 | Hard-coded inputs: typed numbers, and "fake formulas" like `=1000` or `=12*1.05` |
 | ⚫ **Black** | Formulas that only use the same sheet |
 | 🟢 **Green** | Formulas linking to **other sheets** |
 | 🔴 **Red** | Formulas linking to **other workbooks** |
 
-**Only numbers are colored.** Text, dates, times, TRUE/FALSE, blanks, and formulas that *return* text or dates (like `="FY"&A1` or `=EOMONTH(…)` timeline headers) keep whatever font color they already have. You can change any of the four colors in the task pane, and the add-in remembers your choice.
+**Only numbers are colored.** Text, dates, times, TRUE/FALSE, blanks, and formulas that *return* text or dates (like `="FY"&A1` or `=EOMONTH(…)` timeline headers) keep whatever font color they already have. Input cells also get a light yellow background (`#FFF2CC`), so they stand out. You can change any color, or switch the background off, in the task pane. The add-in remembers your choice.
 
 <img src="docs/taskpane.png" width="320" alt="Trace pane">
 

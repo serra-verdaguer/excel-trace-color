@@ -4,6 +4,7 @@
  *   black = formulas on the same sheet
  *   green = formulas linking to other sheets
  *   red   = formulas linking to other workbooks
+ * Inputs also get a light yellow background (colors.inputFill; "" to skip).
  * Text, booleans, blanks, dates/times and formulas that return text or dates
  * keep whatever font colour they already have.
  *
@@ -55,10 +56,12 @@
     }
   }
 
-  async function paint(context, sheet, rects, color) {
+  async function paint(context, sheet, rects, color, fill) {
     const batches = C.batchAddresses(rects);
     for (let i = 0; i < batches.length; i++) {
-      sheet.getRanges(batches[i]).format.font.color = color;
+      const fmt = sheet.getRanges(batches[i]).format;
+      fmt.font.color = color;
+      if (fill) fmt.fill.color = fill;
       if ((i + 1) % BATCHES_PER_SYNC === 0) {
         suspend(context);
         await context.sync();
@@ -132,7 +135,7 @@
 
     progress(`${sheet.name}: painting`);
     suspend(context);
-    await paint(context, sheet, mergers[CAT.INPUT].rects(), colors.input);
+    await paint(context, sheet, mergers[CAT.INPUT].rects(), colors.input, colors.inputFill);
     await paint(context, sheet, mergers[CAT.FORMULA].rects(), colors.formula);
     await paint(context, sheet, mergers[CAT.LINK].rects(), colors.link);
     await paint(context, sheet, mergers[CAT.EXTERNAL].rects(), colors.external);

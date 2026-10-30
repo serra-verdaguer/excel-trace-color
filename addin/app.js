@@ -37,6 +37,7 @@
       const saved = JSON.parse(localStorage.getItem(COLOR_KEY) || "{}");
       const out = Object.assign({}, C.DEFAULT_COLORS);
       for (const k of Object.keys(out)) if (C.isHexColor(saved[k])) out[k] = saved[k];
+      if (saved.inputFill === "") out.inputFill = "";
       return out;
     } catch (e) {
       return Object.assign({}, C.DEFAULT_COLORS);
@@ -49,7 +50,8 @@
 
   function syncColorInputs() {
     const colors = loadColors();
-    document.querySelectorAll("input[data-color]").forEach((inp) => { inp.value = colors[inp.dataset.color]; });
+    document.querySelectorAll("input[data-color]").forEach((inp) => { inp.value = colors[inp.dataset.color] || C.DEFAULT_COLORS[inp.dataset.color]; });
+    $("fillInputs").checked = !!colors.inputFill;
   }
 
   async function runColor(scope) {
@@ -295,15 +297,21 @@
     $("filter").addEventListener("input", () => { clearTimeout(ft); ft = setTimeout(render, 120); });
     $("colorBtn").addEventListener("click", () => runColor("smart"));
     $("colorWbBtn").addEventListener("click", () => {
-      if (confirm("Color code every sheet in this workbook? Existing font colors on numbers and formulas will be replaced.")) runColor("workbook");
+      if (confirm("Color code every sheet in this workbook? Existing font colors on numbers and formulas (and the background of inputs) will be replaced.")) runColor("workbook");
     });
     document.querySelectorAll("input[data-color]").forEach((inp) =>
       inp.addEventListener("change", () => {
         const colors = loadColors();
         colors[inp.dataset.color] = inp.value.toUpperCase();
         saveColors(colors);
+        if (inp.dataset.color === "inputFill") $("fillInputs").checked = true;
       })
     );
+    $("fillInputs").addEventListener("change", () => {
+      const colors = loadColors();
+      colors.inputFill = $("fillInputs").checked ? document.querySelector('input[data-color="inputFill"]').value.toUpperCase() : "";
+      saveColors(colors);
+    });
     $("resetColors").addEventListener("click", () => { saveColors(C.DEFAULT_COLORS); syncColorInputs(); });
     syncColorInputs();
   }
