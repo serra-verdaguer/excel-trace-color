@@ -312,6 +312,28 @@
       colors.inputFill = $("fillInputs").checked ? document.querySelector('input[data-color="inputFill"]').value.toUpperCase() : "";
       saveColors(colors);
     });
+    $("matchFill").addEventListener("click", async (e) => {
+      e.preventDefault();
+      try {
+        const fill = await Excel.run(async (context) => {
+          const f = context.workbook.getActiveCell().format.fill;
+          f.load("color");
+          await context.sync();
+          return f.color;
+        });
+        if (!C.isHexColor(fill)) {
+          status("The selected cell has no solid background to copy.", true);
+          return;
+        }
+        const colors = loadColors();
+        colors.inputFill = fill.toUpperCase();
+        saveColors(colors);
+        syncColorInputs();
+        status("Input background set to " + colors.inputFill + ".");
+      } catch (err) {
+        status("Could not read the cell: " + errText(err), true);
+      }
+    });
     $("resetColors").addEventListener("click", () => { saveColors(C.DEFAULT_COLORS); syncColorInputs(); });
     syncColorInputs();
   }

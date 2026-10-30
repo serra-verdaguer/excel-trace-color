@@ -16,7 +16,7 @@
     formula: "#000000", // formulas on the same sheet
     link: "#008000", // formulas pulling from other sheets
     external: "#FF0000", // formulas pulling from other workbooks
-    inputFill: "#FFF2CC", // light yellow background behind inputs ("" = leave fill alone)
+    inputFill: "#FFFFCC", // light yellow background behind inputs ("" = leave fill alone)
   };
 
   // ---------------------------------------------------------------- addresses
