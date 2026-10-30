@@ -20,6 +20,17 @@ function parseLocal(a) {
   return m[3] ? { r0, c0, r1: +m[4] - 1, c1: C.lettersToCol(m[3]) } : { r0, c0, r1: r0, c1: c0 };
 }
 
+// Grid cells are raw values ("=formula", number, text) or { f, vt, nf } to set
+// the formula's result type and the cell's number format explicitly.
+const raw = (c) => (c && typeof c === "object" ? c.f : c);
+const vtOf = (c) => {
+  if (c && typeof c === "object" && c.vt) return c.vt;
+  const v = raw(c);
+  if (typeof v === "number" || (typeof v === "string" && v[0] === "=")) return "Double";
+  return v === "" ? "Empty" : "String";
+};
+const nfOf = (c) => (c && typeof c === "object" && c.nf) || "General";
+
 function fakeWorkbook(name, grid, opts) {
   opts = opts || {};
   const rows = grid.length, cols = grid[0].length;
@@ -52,11 +63,14 @@ function fakeWorkbook(name, grid, opts) {
     return {
       rowIndex: r0, columnIndex: c0, rowCount: nr, columnCount: nc, isNullObject: false,
       load(props) {
-        if (props.includes("formulasR1C1")) pendingLoads.push(this);
+        if (/formulasR1C1|valueTypes|numberFormat/.test(props)) pendingLoads.push(this);
       },
-      get formulasR1C1() {
+      get formulasR1C1() { return this._read(raw); },
+      get valueTypes() { return this._read(vtOf); },
+      get numberFormat() { return this._read(nfOf); },
+      _read(fn) {
         const out = [];
-        for (let i = 0; i < nr; i++) out.push(grid[r0 + i].slice(c0, c0 + nc));
+        for (let i = 0; i < nr; i++) out.push(grid[r0 + i].slice(c0, c0 + nc).map(fn));
         return out;
       },
       getSpecialCellsOrNullObject(type, valueType) {
@@ -65,7 +79,7 @@ function fakeWorkbook(name, grid, opts) {
         const m = new C.RectMerger();
         for (let i = rect.r0; i <= rect.r1; i++)
           for (let j = rect.c0; j <= rect.c1; j++) {
-            const v = grid[i][j];
+            const v = raw(grid[i][j]);
             const isF = typeof v === "string" && v[0] === "=";
             const hit = type === "Formulas" ? isF : valueType === "Numbers" && typeof v === "number";
             if (hit) m.addRun(i, j, j);
@@ -127,6 +141,28 @@ for (const mode of ["fast", "fallback"]) {
     assert.equal(s.external, 1);
   });
 }
+
+test("only numbers are coloured: dates, text and text/date formulas stay untouched", async () => {
+  for (const mode of ["fast", "fallback"]) {
+    const grid = [
+      // label | typed date               | year header            | text formula                        | numeric formula
+      ["Period", { f: 45657, nf: "dd/mm/yyyy" }, 2025, { f: '="FY"&RC[-1]', vt: "String" }, "=RC[-1]"],
+      ["Date", { f: "=EOMONTH(RC[-1],12)", nf: "mmm-yy" }, { f: 0.25, nf: "0.0%" }, { f: "=Inputs!R1C1", vt: "String" }, { f: "=Inputs!R1C1", nf: "#,##0" }],
+      ["Flag", { f: "=R1C2>0", vt: "Boolean" }, { f: 0.5, nf: "[h]:mm" }, { f: "=1/0", vt: "Error" }, ""],
+    ];
+    const wb = fakeWorkbook("Model", grid, { noSpecialCells: mode === "fallback" });
+    await colorRange(wb.context, wb.sheet, wb.used, COLORS);
+    assert.deepEqual(
+      wb.color,
+      [
+        [null, null, "BLUE", null, "BLACK"],
+        [null, null, "BLUE", null, "GREEN"],
+        [null, null, null, "BLUE", null],
+      ],
+      mode
+    );
+  }
+});
 
 test("large sheet: chunked reads, payload back-off, compressed painting", async () => {
   const ROWS = 200000;

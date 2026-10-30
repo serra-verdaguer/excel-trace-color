@@ -9,7 +9,7 @@ Trace **precedents and dependents** in very large workbooks, and **color-code a 
 | 🟢 **Green** | Formulas linking to **other sheets** |
 | 🔴 **Red** | Formulas linking to **other workbooks** |
 
-Text labels are left alone. You can change any of the four colors in the task pane, and the add-in remembers your choice.
+**Only numbers are colored.** Text, dates, times, TRUE/FALSE, blanks, and formulas that *return* text or dates (like `="FY"&A1` or `=EOMONTH(…)` timeline headers) keep whatever font color they already have. You can change any of the four colors in the task pane, and the add-in remembers your choice.
 
 <img src="docs/taskpane.png" width="320" alt="Trace pane">
 
@@ -68,8 +68,8 @@ On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
 ## Built for huge workbooks
 
 - **Tracing uses Excel's own dependency engine** (`getDirectPrecedents`, `getPrecedents`, `getDirectDependents`, `getDependents`). Results come back as *rectangles*, so `=SUM(A1:A1000000)` returns one row, not a million. Lists render 200 rows at a time, with a *Show more* button.
-- **Color coding does the bulk work inside Excel.** `SpecialCells` turns every numeric constant blue and every formula black in two calls, without moving any cell data. The add-in then reads **only formula cells** (in R1C1, in chunks of about 60k cells) to find the green, red and blue exceptions.
-- **One check per distinct formula.** A formula copied down 1M rows is the same R1C1 string, so it is checked once and then served from a cache.
+- **Color coding skips what doesn't matter.** Excel's `SpecialCells` finds the numeric constants and formulas on its side, so labels and empty space are never read. Only those areas are read, in chunks of about 40k cells, to get the formula, result type and number format.
+- **One check per distinct formula.** A formula copied down 1M rows is the same R1C1 string, so it is checked once and then served from a cache. Number formats (for spotting dates) are cached the same way.
 - **Rectangle compression.** Cells of the same color merge into the fewest possible rectangles before painting, so a 1M-row column becomes one format call.
 - **Adaptive chunking.** If Excel refuses a payload as too large, the chunk size halves and the add-in retries automatically. Calculation and screen updating are suspended while it paints.
 - If `SpecialCells` isn't available, or the sheet is extremely fragmented, the add-in falls back to a full chunked scan.

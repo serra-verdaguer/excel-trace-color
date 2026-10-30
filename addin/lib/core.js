@@ -113,19 +113,55 @@
     return CAT.FORMULA;
   }
 
-  // Classifier with a cache: big models repeat the same R1C1 formula down
-  // whole columns, so most lookups are a Map hit.
+  // True for number formats that display a date or time ("dd/mm/yyyy",
+  // "mmm-yy", "[h]:mm", "[$-x-sysdate]dddd…"). Dates are numbers to Excel,
+  // but they are labels/timelines, not inputs, so they are never coloured.
+  function isDateFormat(fmt) {
+    if (typeof fmt !== "string" || !fmt) return false;
+    const s = fmt
+      .replace(/"[^"]*"/g, "") // literal text
+      .replace(/\\./g, "") // escaped characters
+      .replace(/[_*]./g, "") // padding / fill
+      .replace(/\[(?![hms]+\])[^\]]*\]/gi, "") // [Red], [$-409], [>100] – keep [h] [mm] [ss]
+      .replace(/General/gi, "");
+    return /[dmyhs]/i.test(s);
+  }
+
+  const NUMERIC_RESULT = { Double: true, Integer: true, Error: true };
+
+  // Classifies one cell from what Excel returns for it:
+  //   v  : formulasR1C1 entry (number / text / "=formula"); undefined for
+  //        cells already known to be numeric constants
+  //   vt : valueTypes entry (what a formula evaluates to)
+  //   nf : numberFormat entry
+  // Only numbers are coloured: text, booleans, blanks and anything shown as a
+  // date/time are left untouched – constants and formula results alike.
+  // Everything is cached: big models repeat the same R1C1 formula and the same
+  // number format down whole columns, so most lookups are a Map hit.
   function makeClassifier(sheetName, maxCache) {
-    const cache = new Map();
+    const fxCache = new Map();
+    const fmtCache = new Map();
     maxCache = maxCache || 100000;
-    return function classify(v) {
-      if (typeof v === "number") return CAT.INPUT;
+    function isDate(nf) {
+      if (nf === undefined || nf === "General") return false;
+      let d = fmtCache.get(nf);
+      if (d === undefined) {
+        d = isDateFormat(nf);
+        if (fmtCache.size >= maxCache) fmtCache.clear();
+        fmtCache.set(nf, d);
+      }
+      return d;
+    }
+    return function classify(v, vt, nf) {
+      if (v === undefined || typeof v === "number") return isDate(nf) ? CAT.NONE : CAT.INPUT;
       if (typeof v !== "string" || v.charCodeAt(0) !== 61 /* = */) return CAT.NONE;
-      let c = cache.get(v);
+      if (vt !== undefined && !NUMERIC_RESULT[vt]) return CAT.NONE;
+      if (isDate(nf)) return CAT.NONE;
+      let c = fxCache.get(v);
       if (c === undefined) {
         c = classifyFormula(v, sheetName);
-        if (cache.size >= maxCache) cache.clear();
-        cache.set(v, c);
+        if (fxCache.size >= maxCache) fxCache.clear();
+        fxCache.set(v, c);
       }
       return c;
     };
@@ -156,20 +192,24 @@
     }
   }
 
-  // Scans a 2D block of values/formulas and feeds category runs into mergers.
-  //   values   : 2D array as returned by range.formulasR1C1
-  //   r0, c0   : absolute 0-based position of values[0][0]
-  //   classify : function(value) -> CAT
+  // Scans a block of cells and feeds category runs into mergers.
+  //   data     : { rows, cols, formulas?, valueTypes?, numberFormat? } – 2D arrays
+  //              as returned by Excel (formulas = range.formulasR1C1). A plain
+  //              2D array is accepted as shorthand for { formulas }.
+  //   r0, c0   : absolute 0-based position of the block's top-left cell
+  //   classify : function(value, valueType, numberFormat) -> CAT
   //   mergers  : { [CAT]: RectMerger } – only categories present are recorded
-  function scanBlock(values, r0, c0, classify, mergers) {
+  function scanBlock(data, r0, c0, classify, mergers) {
+    if (Array.isArray(data)) data = { formulas: data, rows: data.length, cols: data.length ? data[0].length : 0 };
+    const F = data.formulas, VT = data.valueTypes, NF = data.numberFormat;
     const counts = {};
-    for (let i = 0; i < values.length; i++) {
-      const row = values[i];
+    for (let i = 0; i < data.rows; i++) {
+      const fr = F && F[i], vr = VT && VT[i], nr = NF && NF[i];
       const absRow = r0 + i;
       let runCat = CAT.NONE;
       let runStart = 0;
-      for (let j = 0; j <= row.length; j++) {
-        const cat = j < row.length ? classify(row[j]) : CAT.NONE;
+      for (let j = 0; j <= data.cols; j++) {
+        const cat = j < data.cols ? classify(fr && fr[j], vr && vr[j], nr && nr[j]) : CAT.NONE;
         if (cat !== runCat) {
           if (runCat !== CAT.NONE && mergers[runCat]) {
             mergers[runCat].addRun(absRow, c0 + runStart, c0 + j - 1);
@@ -217,6 +257,7 @@
     batchAddresses,
     classifyFormula,
     makeClassifier,
+    isDateFormat,
     RectMerger,
     scanBlock,
     planChunks,

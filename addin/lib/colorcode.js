@@ -1,47 +1,56 @@
 /*
- * One-click financial-model colour convention:
+ * One-click financial-model colour convention, applied to NUMBERS ONLY:
  *   blue  = hard-coded numbers (incl. "=1000"-style typed numbers)
  *   black = formulas on the same sheet
  *   green = formulas linking to other sheets
  *   red   = formulas linking to other workbooks
+ * Text, booleans, blanks, dates/times and formulas that return text or dates
+ * keep whatever font colour they already have.
  *
  * Built for very large sheets:
- *   1. Excel's own SpecialCells does the bulk work server-side: every numeric
- *      constant turns blue and every formula turns black in two calls, without
- *      sending a single cell value to the add-in.
- *   2. Only formula cells are then read (as R1C1, in adaptive chunks) to find
- *      the green/red/blue exceptions. Classification is cached per distinct
- *      R1C1 formula, so a column copied down 1M rows is classified once.
- *   3. Exceptions are compressed into rectangles and painted in batched unions.
+ *   1. Excel's SpecialCells finds numeric constants and formulas server-side,
+ *      so labels and empty space are never read.
+ *   2. Those areas are read in adaptive chunks (number format; plus R1C1 formula
+ *      and result type for formulas). Classification is cached per distinct
+ *      formula / number format, so a column copied down 1M rows costs one check.
+ *   3. Cells are compressed into rectangles and painted in batched unions.
  */
 (function (root) {
   "use strict";
   const C = root.TCCore;
   const { CAT } = C;
 
-  const START_BUDGET = 60000; // cells per read; halves automatically on payload errors
+  const START_BUDGET = 40000; // cells per read; halves automatically on payload errors
   const MIN_BUDGET = 500;
   const MAX_AREAS_FAST = 3000; // more fragmented than this -> scan used range instead
   const BATCHES_PER_SYNC = 80;
+  const PROPS = {
+    constants: ["numberFormat"],
+    formulas: ["formulasR1C1", "valueTypes", "numberFormat"],
+  };
 
   function suspend(context) {
     try { context.application.suspendApiCalculationUntilNextSync(); } catch (e) { /* older hosts */ }
     try { context.application.suspendScreenUpdatingUntilNextSync(); } catch (e) { /* not on web */ }
   }
 
-  async function readBlock(context, sheet, block, state) {
-    // Returns { values, block } – may split the block if Excel rejects the payload.
+  // Reads one block; splits it if Excel rejects the payload as too large.
+  async function readBlock(context, sheet, block, props, state) {
     const range = sheet.getRangeByIndexes(block.r0, block.c0, block.rows, block.cols);
-    range.load("formulasR1C1");
+    range.load(props.join(","));
     try {
       await context.sync();
-      return [{ values: range.formulasR1C1, block }];
+      const data = { rows: block.rows, cols: block.cols };
+      if (props.includes("formulasR1C1")) data.formulas = range.formulasR1C1;
+      if (props.includes("valueTypes")) data.valueTypes = range.valueTypes;
+      data.numberFormat = range.numberFormat;
+      return [{ data, block }];
     } catch (err) {
       if (state.budget <= MIN_BUDGET || block.rows * block.cols <= MIN_BUDGET) throw err;
       state.budget = Math.max(MIN_BUDGET, Math.floor(state.budget / 2));
       const parts = C.planChunks(block.r0, block.c0, block.rows, block.cols, state.budget);
       let out = [];
-      for (const p of parts) out = out.concat(await readBlock(context, sheet, p, state));
+      for (const p of parts) out = out.concat(await readBlock(context, sheet, p, props, state));
       return out;
     }
   }
@@ -56,6 +65,33 @@
       }
     }
     await context.sync();
+  }
+
+  const toBlock = (a) => ({ r0: a.rowIndex, c0: a.columnIndex, rows: a.rowCount, cols: a.columnCount });
+
+  // Finds the blocks worth reading: numeric constants and formulas via
+  // SpecialCells, or the whole target if that is unavailable or too fragmented.
+  async function planBlocks(context, target) {
+    const whole = [{ block: toBlock(target), props: PROPS.formulas }];
+    try {
+      const nums = target.getSpecialCellsOrNullObject(Excel.SpecialCellType.constants, Excel.SpecialCellValueType.numbers);
+      const fx = target.getSpecialCellsOrNullObject(Excel.SpecialCellType.formulas);
+      nums.load("isNullObject,areaCount");
+      fx.load("isNullObject,areaCount");
+      await context.sync();
+      const areaCount = (nums.isNullObject ? 0 : nums.areaCount) + (fx.isNullObject ? 0 : fx.areaCount);
+      if (areaCount > MAX_AREAS_FAST) return whole;
+      const AREA_PROPS = "items/rowIndex,items/columnIndex,items/rowCount,items/columnCount";
+      if (!nums.isNullObject) nums.areas.load(AREA_PROPS);
+      if (!fx.isNullObject) fx.areas.load(AREA_PROPS);
+      await context.sync();
+      const out = [];
+      if (!nums.isNullObject) for (const a of nums.areas.items) out.push({ block: toBlock(a), props: PROPS.constants });
+      if (!fx.isNullObject) for (const a of fx.areas.items) out.push({ block: toBlock(a), props: PROPS.formulas });
+      return out;
+    } catch (err) {
+      return whole; // SpecialCells unavailable (or too complex) – scan everything.
+    }
   }
 
   /*
@@ -73,84 +109,31 @@
     const stats = { input: 0, formula: 0, link: 0, external: 0, cells: target.rowCount * target.columnCount };
     const classify = C.makeClassifier(sheet.name);
     const state = { budget: START_BUDGET };
-
-    // ---- Pass 1: server-side bulk colouring.
-    let blocks = null;
-    let fullScan = false;
-    try {
-      suspend(context);
-      const nums = target.getSpecialCellsOrNullObject(Excel.SpecialCellType.constants, Excel.SpecialCellValueType.numbers);
-      const fx = target.getSpecialCellsOrNullObject(Excel.SpecialCellType.formulas);
-      nums.load("isNullObject,cellCount");
-      fx.load("isNullObject,cellCount,areaCount");
-      await context.sync();
-      if (!nums.isNullObject) {
-        nums.format.font.color = colors.input;
-        stats.input = nums.cellCount;
-      }
-      if (fx.isNullObject) {
-        await context.sync();
-        return stats;
-      }
-      fx.format.font.color = colors.formula;
-      stats.formula = fx.cellCount;
-      if (fx.areaCount <= MAX_AREAS_FAST) {
-        fx.areas.load("items/rowIndex,items/columnIndex,items/rowCount,items/columnCount");
-      }
-      await context.sync();
-      if (fx.areaCount <= MAX_AREAS_FAST) {
-        blocks = fx.areas.items.map((a) => ({ r0: a.rowIndex, c0: a.columnIndex, rows: a.rowCount, cols: a.columnCount }));
-      }
-    } catch (err) {
-      // SpecialCells unavailable (or too complex) – classify everything by scanning.
-      fullScan = true;
-      stats.input = 0;
-      stats.formula = 0;
-    }
-    if (!blocks) {
-      blocks = [{ r0: target.rowIndex, c0: target.columnIndex, rows: target.rowCount, cols: target.columnCount }];
-    }
-
-    // ---- Pass 2: read formulas, find the exceptions.
     const mergers = {};
-    mergers[CAT.LINK] = new C.RectMerger();
-    mergers[CAT.EXTERNAL] = new C.RectMerger();
-    mergers[CAT.INPUT] = new C.RectMerger();
-    if (fullScan) mergers[CAT.FORMULA] = new C.RectMerger();
+    for (const k of [CAT.INPUT, CAT.FORMULA, CAT.LINK, CAT.EXTERNAL]) mergers[k] = new C.RectMerger();
 
-    const totalCells = blocks.reduce((s, b) => s + b.rows * b.cols, 0);
+    const jobs = await planBlocks(context, target);
+    const totalCells = jobs.reduce((s, j) => s + j.block.rows * j.block.cols, 0);
     let doneCells = 0;
-    let hardcodedFormulas = 0;
-    for (const big of blocks) {
-      const chunks = C.planChunks(big.r0, big.c0, big.rows, big.cols, state.budget);
-      for (const chunk of chunks) {
-        const parts = await readBlock(context, sheet, chunk, state);
-        for (const part of parts) {
-          const counts = C.scanBlock(part.values, part.block.r0, part.block.c0, classify, mergers);
+    for (const job of jobs) {
+      const big = job.block;
+      for (const chunk of C.planChunks(big.r0, big.c0, big.rows, big.cols, state.budget)) {
+        for (const part of await readBlock(context, sheet, chunk, job.props, state)) {
+          const counts = C.scanBlock(part.data, part.block.r0, part.block.c0, classify, mergers);
+          stats.input += counts[CAT.INPUT] || 0;
+          stats.formula += counts[CAT.FORMULA] || 0;
           stats.link += counts[CAT.LINK] || 0;
           stats.external += counts[CAT.EXTERNAL] || 0;
-          if (fullScan) {
-            stats.input += counts[CAT.INPUT] || 0;
-            stats.formula += counts[CAT.FORMULA] || 0;
-          } else {
-            hardcodedFormulas += counts[CAT.INPUT] || 0;
-          }
         }
         doneCells += chunk.rows * chunk.cols;
         progress(`${sheet.name}: reading ${Math.round((100 * doneCells) / totalCells)}%`);
       }
     }
-    if (!fullScan) {
-      // Exceptions were counted inside the black total.
-      stats.formula -= stats.link + stats.external + hardcodedFormulas;
-      stats.input += hardcodedFormulas;
-    }
 
-    // ---- Pass 3: paint exceptions (black first so the others win in full-scan mode).
     progress(`${sheet.name}: painting`);
     suspend(context);
-    if (fullScan) await paint(context, sheet, mergers[CAT.FORMULA].rects(), colors.formula);
     await paint(context, sheet, mergers[CAT.INPUT].rects(), colors.input);
+    await paint(context, sheet, mergers[CAT.FORMULA].rects(), colors.formula);
     await paint(context, sheet, mergers[CAT.LINK].rects(), colors.link);
     await paint(context, sheet, mergers[CAT.EXTERNAL].rects(), colors.external);
     return stats;
