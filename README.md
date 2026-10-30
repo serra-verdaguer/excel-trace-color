@@ -15,25 +15,30 @@ Text labels are left alone. You can change any of the four colors in the task pa
 
 ---
 
-## Install (about 1 minute, no coding)
+## Install (one click)
 
-The add-in is hosted on GitHub Pages, so there's nothing to download except one file.
+**This is not VBA.** It's a modern Office add-in written in JavaScript. All the heavy work (tracing, finding every number and formula) runs inside Excel's own calculation engine. That's why it can handle sheets VBA macros choke on.
 
-1. Download **[`manifest.xml`](https://raw.githubusercontent.com/serra-verdaguer/excel-trace-color/main/manifest.xml)** (right-click → *Save link as…*).
-2. Load it into Excel:
-   - **Excel for Windows / Mac (Microsoft 365):** `Home` → `Add-ins` → `More Add-ins` → `My Add-ins` → **`Upload My Add-in`** → choose `manifest.xml`.
-   - **Excel on the web:** same path: `Home` → `Add-ins` → `More Add-ins` → `Upload My Add-in`.
-3. A new **Trace & Color** tab appears on the ribbon.
+### Windows (Microsoft 365)
+1. Download **[Install-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/releases/latest/download/Install-Windows.cmd)** and double-click it.
+   - If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. The script is 30 lines: you can read it [here](install/Install-Windows.cmd).
+2. Close Excel completely and reopen it. The **Trace & Color** tab is on the ribbon.
 
-> If *Upload My Add-in* is greyed out, your IT department has blocked sideloading. Ask them to deploy `manifest.xml` through **Microsoft 365 admin center → Integrated apps** (it takes them about two minutes). Then everyone in the company gets the tab automatically.
+To remove it, run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/releases/latest/download/Uninstall-Windows.cmd).
 
-<details>
-<summary>Windows: permanent install via a shared folder (alternative)</summary>
+### Mac (Microsoft 365)
+Open **Terminal**, paste this line, press Enter, then restart Excel:
+```bash
+curl -fsSL https://raw.githubusercontent.com/serra-verdaguer/excel-trace-color/main/install/install-mac.sh | bash
+```
 
-1. Put `manifest.xml` in a folder and share it (right-click → *Properties* → *Sharing*). Copy the network path, e.g. `\\MY-PC\addins`.
-2. Excel → `File` → `Options` → `Trust Center` → `Trust Center Settings` → `Trusted Add-in Catalogs`. Paste the path, tick **Show in Menu**, then OK.
-3. Restart Excel → `Home` → `Add-ins` → `More Add-ins` → **`Shared Folder`** → *Trace & Color* → Add.
-</details>
+### Excel on the web, or as an alternative on any platform
+Download [`manifest.xml`](https://github.com/serra-verdaguer/excel-trace-color/releases/latest/download/manifest.xml), then in Excel go to `Home` → `Add-ins` → `More Add-ins` → `My Add-ins` → **`Upload My Add-in`**.
+
+### Whole company, zero clicks per person
+An IT admin uploads `manifest.xml` once in **Microsoft 365 admin center → Settings → Integrated apps → Upload custom apps**. The tab then appears for everyone automatically.
+
+Updates are automatic. The add-in's code is served from GitHub Pages, so when this repo changes, everyone gets the new version the next time Excel starts.
 
 ## Use
 
