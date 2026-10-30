@@ -19,16 +19,17 @@ Trace **precedents and dependents** in very large workbooks, and **color-code a 
 
 **This is not VBA.** It's a modern Office add-in written in JavaScript. All the heavy work (tracing, finding every number and formula) runs inside Excel's own calculation engine. That's why it can handle sheets VBA macros choke on.
 
-### Windows (Microsoft 365)
-1. Open **[Install-Windows-Permanent.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Install-Windows-Permanent.cmd)**, click **Download raw file** (↓), and double-click the downloaded file.
-   - If you see *"Windows protected your PC"*, click **More info → Run anyway**. Click **Yes** when Windows asks for permission: the installer shares one small folder read-only.
+### Windows (Microsoft 365): one file
+1. Download **[Install-Trace-Color.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Install-Trace-Color.cmd)** (click **Download raw file**, ↓) and double-click it.
+   - If you see *"Windows protected your PC"*, click **More info → Run anyway**. Then click **Yes** when Windows asks for permission.
 2. Close Excel completely and reopen it.
 3. **Once:** `Home` → `Add-ins` → `More Add-ins` → **`SHARED FOLDER`** → *Trace & Color* → **Add**.
 
 The **Trace & Color** tab, and a group on the **Home** tab, are then there every time you open Excel.
 
-- *No admin rights?* (common on company laptops) Use [Install-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Install-Windows.cmd) instead. It doesn't need permission, but Excel treats it as a test add-in, so you may have to re-add it from *My Add-ins → Developer Add-ins* after a restart. For a permanent setup, ask IT to deploy it (see below).
-- To remove it, run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Uninstall-Windows.cmd).
+On PCs without admin rights, the same file automatically falls back to a basic install. The installer then tells you where to find the add-in (*My Add-ins → Developer Add-ins*). Excel may forget a basic install after a restart, so on company laptops the permanent route is IT deployment (see below).
+
+To remove it, run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Uninstall-Windows.cmd).
 
 ### Mac (Microsoft 365)
 Open **Terminal**, paste this line and press Enter. Quit Excel (⌘Q), reopen it, then **first time only** go to `Insert` → `Add-ins` → small arrow next to **My Add-ins** → under **Developer Add-ins** click *Trace & Color*:

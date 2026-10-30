@@ -1,14 +1,14 @@
 @echo off
 setlocal
-rem Permanent installer for the Trace ^& Color Excel add-in (Microsoft 365 for Windows).
-rem Installs it through a "shared folder catalog", which Excel keeps between restarts
-rem (unlike Developer add-ins). Windows asks once for permission to share the folder.
+rem One-file installer for the Trace ^& Color Excel add-in (Microsoft 365 for Windows).
 rem
-rem What it does:
+rem Permanent install (Windows asks once for permission):
 rem   1. Saves manifest.xml in %PUBLIC%\TraceColor
-rem   2. Shares that folder read-only as \\%COMPUTERNAME%\TraceColor (needs admin, asked once)
-rem   3. Registers the share as a trusted add-in catalog for Excel
-rem   4. Removes the old Developer-mode registration, so you don't get two copies
+rem   2. Shares that folder read-only as \\%COMPUTERNAME%\TraceColor
+rem   3. Registers the share as a trusted add-in catalog, which Excel keeps between restarts
+rem   4. Removes any older Developer-mode registration, so you don't get two copies
+rem No admin rights (or permission declined)? It falls back to Developer mode, which
+rem needs no permission but Excel may forget after a restart.
 
 set "DIR=%PUBLIC%\TraceColor"
 set "SHARE=\\%COMPUTERNAME%\TraceColor"
@@ -22,7 +22,7 @@ if errorlevel 1 goto :fail_download
 
 echo Sharing the add-in folder (click Yes if Windows asks)...
 powershell -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-EncodedCommand','JABwACAAPQAgAEoAbwBpAG4ALQBQAGEAdABoACAAJABlAG4AdgA6AFAAVQBCAEwASQBDACAAJwBUAHIAYQBjAGUAQwBvAGwAbwByACcACgBpAGYAIAAoAC0AbgBvAHQAIAAoAEcAZQB0AC0AUwBtAGIAUwBoAGEAcgBlACAALQBOAGEAbQBlACAAJwBUAHIAYQBjAGUAQwBvAGwAbwByACcAIAAtAEUAcgByAG8AcgBBAGMAdABpAG8AbgAgAFMAaQBsAGUAbgB0AGwAeQBDAG8AbgB0AGkAbgB1AGUAKQApACAAewAKACAAIAAkAGUAdgBlAHIAeQBvAG4AZQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABTAGUAYwB1AHIAaQB0AHkALgBQAHIAaQBuAGMAaQBwAGEAbAAuAFMAZQBjAHUAcgBpAHQAeQBJAGQAZQBuAHQAaQBmAGkAZQByACAAJwBTAC0AMQAtADEALQAwACcAKQAuAFQAcgBhAG4AcwBsAGEAdABlACgAWwBTAGUAYwB1AHIAaQB0AHkALgBQAHIAaQBuAGMAaQBwAGEAbAAuAE4AVABBAGMAYwBvAHUAbgB0AF0AKQAuAFYAYQBsAHUAZQAKACAAIABOAGUAdwAtAFMAbQBiAFMAaABhAHIAZQAgAC0ATgBhAG0AZQAgACcAVAByAGEAYwBlAEMAbwBsAG8AcgAnACAALQBQAGEAdABoACAAJABwACAALQBSAGUAYQBkAEEAYwBjAGUAcwBzACAAJABlAHYAZQByAHkAbwBuAGUAIAB8ACAATwB1AHQALQBOAHUAbABsAAoAfQA='"
-if not exist "%SHARE%\manifest.xml" goto :fail_share
+if not exist "%SHARE%\manifest.xml" goto :developer
 
 reg add "%CATALOG%" /v Id /t REG_SZ /d "{C40A524E-4F95-44AD-B692-E1E752825EA9}" /f >nul
 reg add "%CATALOG%" /v Url /t REG_SZ /d "%SHARE%" /f >nul
@@ -44,10 +44,14 @@ echo Download failed. Check your internet connection and try again.
 pause
 exit /b 1
 
-:fail_share
+:developer
+reg add "HKCU\Software\Microsoft\Office\16.0\WEF\Developer" /v "226f2a76-31d8-4adc-95c6-053ff2729ee0" /t REG_SZ /d "%DIR%\manifest.xml" /f >nul
 echo.
-echo Could not share the folder %DIR%.
-echo You may not have administrator rights on this PC (common on company laptops).
-echo In that case ask IT to deploy the add-in: Microsoft 365 admin center ^> Integrated apps.
+echo Installed in basic mode (this PC did not allow sharing the folder).
+echo   1. Close Excel completely (all windows) and open it again.
+echo   2. Home ^> Add-ins ^> More Add-ins ^> MY ADD-INS ^> Developer Add-ins ^> Trace ^& Color ^> Add.
+echo Excel may forget it after a restart. To make it permanent, run this file again
+echo and click Yes when Windows asks, or ask IT to deploy it (Microsoft 365 admin center ^> Integrated apps).
+echo.
 pause
-exit /b 1
+exit /b 0
