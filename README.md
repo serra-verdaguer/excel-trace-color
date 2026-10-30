@@ -22,12 +22,13 @@ Text labels are left alone. You can change any of the four colors in the task pa
 ### Windows (Microsoft 365)
 1. Open **[Install-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Install-Windows.cmd)**, click the **Download raw file** button (↓, top right of the file), then double-click the downloaded file.
    - If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. The script is about 30 lines, and you can read it on that page.
-2. Close Excel completely and reopen it. The **Trace & Color** tab is on the ribbon.
+2. Close Excel completely and reopen it.
+3. **First time only:** `Home` → `Add-ins` → `More Add-ins` → **`MY ADD-INS`** → section **Developer Add-ins** → *Trace & Color* → **Add**. The **Trace & Color** tab then stays on the ribbon.
 
 To remove it, download and run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Uninstall-Windows.cmd) the same way.
 
 ### Mac (Microsoft 365)
-Open **Terminal**, paste this line, press Enter, then restart Excel:
+Open **Terminal**, paste this line and press Enter. Quit Excel (⌘Q), reopen it, then **first time only** go to `Insert` → `Add-ins` → small arrow next to **My Add-ins** → under **Developer Add-ins** click *Trace & Color*:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/serra-verdaguer/excel-trace-color/main/install/install-mac.sh | bash
 ```

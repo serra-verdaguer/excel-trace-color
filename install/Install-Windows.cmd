@@ -26,7 +26,9 @@ if errorlevel 1 (
 
 echo.
 echo Installed!
-echo Close Excel completely (all windows), open it again, and look for the
-echo "Trace & Color" tab on the ribbon.
+echo 1. Close Excel completely (all windows) and open it again.
+echo 2. Home ^> Add-ins ^> More Add-ins ^> MY ADD-INS ^> "Developer Add-ins"
+echo    ^> click "Trace & Color" ^> Add.  (Only needed the first time.)
+echo 3. The "Trace & Color" tab appears on the ribbon.
 echo.
 pause

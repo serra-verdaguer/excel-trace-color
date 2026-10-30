@@ -6,4 +6,7 @@ DIR="$HOME/Library/Containers/com.microsoft.Excel/Data/Documents/wef"
 mkdir -p "$DIR"
 curl -fsSL "https://raw.githubusercontent.com/serra-verdaguer/excel-trace-color/main/manifest.xml" \
   -o "$DIR/excel-trace-color.manifest.xml"
-echo "Installed! Quit Excel (Cmd+Q), reopen it, and look for the \"Trace & Color\" tab."
+echo "Installed!"
+echo "1. Quit Excel completely (Cmd+Q) and reopen it with any workbook."
+echo "2. Insert > Add-ins > My Add-ins (click the small arrow) > under 'Developer Add-ins' click 'Trace & Color'."
+echo "3. The 'Trace & Color' tab appears on the ribbon."
