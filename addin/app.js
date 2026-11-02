@@ -15,6 +15,7 @@
     autoTimer: null,
     navTimer: null,
     seq: 0, // ignores results of superseded traces
+    paused: false, // after Esc: pane hidden, selection no longer followed
   };
   const $ = (id) => document.getElementById(id);
 
@@ -122,6 +123,41 @@
     }
   }
 
+  // Formula with references, numbers etc. coloured (see TCCore.tokenizeFormula).
+  function formulaEl(formula, sheet, cls) {
+    const el = document.createElement("code");
+    el.className = cls || "fx";
+    for (const t of C.tokenizeFormula(formula, sheet)) {
+      const span = document.createElement("span");
+      span.textContent = t.text;
+      if (t.kind !== "op") span.className = "tk-" + t.kind;
+      if (t.kind === "num" && !/^[01](\.0*)?%?$/.test(t.text)) span.classList.add("hard");
+      el.appendChild(span);
+    }
+    return el;
+  }
+
+  // Small badges: "↗ Page 2", "⚠ 2025", "external file".
+  function badgesEl(formula, sheet, long) {
+    const n = C.describeFormula(formula, sheet);
+    const wrap = document.createElement("div");
+    wrap.className = long ? "notes" : "badges";
+    const add = (cls, text, title) => {
+      const b = document.createElement("span");
+      b.className = "badge " + cls;
+      b.textContent = text;
+      if (title) b.title = title;
+      wrap.appendChild(b);
+    };
+    for (const sh of n.sheets) add("b-sheet", long ? `Takes data from another sheet: ${sh}` : `↗ ${sh}`, "Pulls from sheet " + sh);
+    if (n.external) add("b-ext", long ? "Takes data from another file" : "↗ other file", "Links to another workbook");
+    if (n.hardcoded.length) {
+      const list = n.hardcoded.slice(0, 4).join(", ");
+      add("b-hard", long ? `Typed-in number inside the formula: ${list}. Consider moving it to an input cell.` : `⚠ ${list}`, "Hard-coded number inside the formula");
+    }
+    return wrap.childElementCount ? wrap : null;
+  }
+
   function remember(addr) {
     const h = state.history;
     if (!h.length || !sameAddr(h[h.length - 1], addr)) h.push(addr);
@@ -135,7 +171,13 @@
     $("oSheet").classList.toggle("has", !!sheet);
     $("oCell").textContent = local;
     $("oValue").textContent = res.originCells > 1 ? `${C.formatCount(res.originCells)} cells` : res.originValue || "";
-    $("oFormula").textContent = res.originCells > 1 ? "" : res.originFormula || "";
+    const of = $("oFormula");
+    of.innerHTML = "";
+    if (res.originCells === 1 && res.originFormula) {
+      of.appendChild(formulaEl(res.originFormula, sheet, "fx big"));
+      const b = badgesEl(res.originFormula, sheet, false);
+      if (b) of.appendChild(b);
+    }
     $("originBtn").title = `Go back to ${res.origin} (Esc)`;
 
     // Breadcrumb: the cells analysed before this one (last few).
@@ -239,7 +281,7 @@
     let after = anchor;
     const newItems = [];
     for (let i = start; i < end; i++) {
-      const it = { area: areas[i], sheet, el: itemEl(areas[i]) };
+      const it = { area: areas[i], sheet, el: itemEl(areas[i], sheet) };
       after.after(it.el);
       after = it.el;
       newItems.push(it);
@@ -271,7 +313,7 @@
     return count;
   }
 
-  function itemEl(area) {
+  function itemEl(area, sheet) {
     const row = document.createElement("div");
     row.className = "item";
     row.title = area.address + (area.formula ? "\n" + area.formula : "") + "\nDouble-click or → to trace into it";
@@ -283,15 +325,13 @@
     val.textContent = area.cells > 1 ? `${C.formatCount(area.cells)} cells` : area.value !== undefined ? area.value : "";
     row.append(addr, val);
     if (area.formula) {
-      const fx = document.createElement("span");
-      fx.className = "fx";
-      fx.textContent = area.formula;
-      row.appendChild(fx);
+      row.appendChild(formulaEl(area.formula, sheet));
+      const b = badgesEl(area.formula, sheet, false);
+      if (b) row.appendChild(b);
     }
     return row;
   }
 
-  // Highlights row i and (optionally) selects it in Excel.
   // Highlights row i and (optionally) selects it in Excel.
   // i = -1 means the traced cell itself (the card at the top).
   function activate(i, go) {
@@ -301,6 +341,7 @@
     state.active = i;
     $("origin").classList.toggle("here", i === -1);
     updateReturn();
+    renderNow(i >= 0 ? state.items[i] : null);
     const address = i === -1 ? state.result.origin : state.items[i].area.address;
     if (i >= 0) {
       state.items[i].el.classList.add("active");
@@ -313,6 +354,45 @@
       clearTimeout(state.navTimer);
       state.navTimer = setTimeout(() => goTo(address), 60);
     }
+  }
+
+  // Explains the reference you're on: where it is, what it holds, what to watch.
+  function renderNow(it) {
+    const box = $("now");
+    box.hidden = !it;
+    if (!it) return;
+    const a = it.area;
+    const originLocal = C.splitAddress(state.result.origin).local;
+    const otherSheet = it.sheet !== C.splitAddress(state.result.origin).sheet;
+    $("nowLabel").textContent = `${state.dir === "precedents" ? "Feeds" : "Uses"} ${originLocal} ·`;
+    $("nowAddr").textContent = (otherSheet ? it.sheet + " › " : "") + a.local;
+    $("nowValue").textContent = a.cells > 1 ? `${C.formatCount(a.cells)} cells` : a.value || "";
+    const f = $("nowFormula");
+    const notes = $("nowNotes");
+    f.innerHTML = "";
+    notes.innerHTML = "";
+    if (a.formula) {
+      f.appendChild(formulaEl(a.formula, it.sheet, "fx big"));
+      const b = badgesEl(a.formula, it.sheet, true);
+      if (b) notes.appendChild(b);
+    } else if (a.cells === 1) {
+      notes.innerHTML = '<div class="notes"><span class="badge b-hard">Typed-in value (an input, no formula)</span></div>';
+    }
+    if (otherSheet) {
+      const n = document.createElement("div");
+      n.className = "notes";
+      n.innerHTML = '<span class="badge b-sheet"></span>';
+      n.firstChild.textContent = `On another sheet: ${it.sheet}`;
+      notes.prepend(n);
+    }
+  }
+
+  // Esc: back to your cell, hide the pane, stop following the selection.
+  async function exitTrace() {
+    if (state.result) await goTo(state.result.origin);
+    state.paused = true;
+    try { await Office.addin.hide(); } catch (e) { /* not supported */ }
+    status("Tracing stopped. Press a Trace button to start again.");
   }
 
   // "Return to D10" shows while you're looking at one of its references.
@@ -385,14 +465,14 @@
       case "Enter": drill(state.active < 0 ? 0 : state.active); break;
       case "ArrowLeft":
       case "Backspace": if (state.active >= 0) activate(-1, true); else back(1); break;
-      case "Escape": activate(-1, true); break;
+      case "Escape": exitTrace(); break;
       default: return;
     }
     e.preventDefault();
   }
 
   async function onSelectionChanged() {
-    if (!$("autoTrace").checked) return;
+    if (!$("autoTrace").checked || state.paused) return;
     clearTimeout(state.autoTimer);
     state.autoTimer = setTimeout(async () => {
       try {
@@ -408,6 +488,7 @@
   // ---------------------------------------------------------------- commands
 
   async function showPane() {
+    state.paused = false;
     try { await Office.addin.showAsTaskpane(); } catch (e) { /* already visible / unsupported */ }
   }
 
@@ -437,9 +518,12 @@
     Office.actions.associate("nextRef", command(async () => { await ensureTrace(); activate(state.active + 1, true); }));
     Office.actions.associate("prevRef", command(async () => { await ensureTrace(); activate(state.active - 1, true); }));
     Office.actions.associate("intoRef", command(async () => { await ensureTrace(); await drill(state.active < 0 ? 0 : state.active); }));
+    // Ctrl+Alt+←: back to your cell → previous cell → stop tracing.
     Office.actions.associate("backRef", command(async () => {
-      if (state.history.length && state.active === -1) await back(1);
-      else activate(-1, true);
+      if (!state.result || state.paused) return;
+      if (state.active >= 0) activate(-1, true);
+      else if (state.history.length) await back(1);
+      else await exitTrace();
     }));
   }
 
@@ -508,6 +592,12 @@
     // Load with Excel from now on, so the tab and keyboard shortcuts are live
     // without opening the pane first.
     try { await Office.addin.setStartupBehavior(Office.StartupBehavior.load); } catch (e) { /* older hosts */ }
+    // Reopening the pane (ribbon "Trace Pane") resumes tracing after Esc.
+    try {
+      Office.addin.onVisibilityModeChanged((args) => {
+        if (args.visibilityMode === "Taskpane") state.paused = false;
+      });
+    } catch (e) { /* older hosts */ }
     try {
       await Excel.run(async (context) => {
         context.workbook.onSelectionChanged.add(onSelectionChanged);

@@ -237,6 +237,76 @@
     return out;
   }
 
+
+  // ------------------------------------------------------- formula tokenizer
+
+  // Splits an A1 formula into coloured pieces for display:
+  //   str  "text"          ref   A1, $B$2:C9 (same sheet)
+  //   xref Sheet2!A1       ext   [Book.xlsx]Sheet!A1
+  //   num  2025, 1.5%      fn    SUM(
+  //   op   everything else (operators, commas, spaces, names)
+  const SHEET_PREFIX = "(?:'(?:[^']|'')+'|[A-Za-z0-9_.\\u00C0-\\uFFFF]+(?::[A-Za-z0-9_.\\u00C0-\\uFFFF]+)?)!";
+  const CELL = "\\$?[A-Za-z]{1,3}\\$?\\d+(?::\\$?[A-Za-z]{1,3}\\$?\\d+)?";
+  const COLS = "\\$?[A-Za-z]{1,3}:\\$?[A-Za-z]{1,3}";
+  const ROWS = "\\$?\\d+:\\$?\\d+";
+  const TOKEN = new RegExp(
+    [
+      '("(?:[^"]|"")*")', // 1 string
+      "((?:'[^']*\\[[^\\]]+\\][^']*'|\\[[^\\]]+\\][A-Za-z0-9_.]*)!(?:" + CELL + "|" + COLS + "|" + ROWS + "|[A-Za-z_][A-Za-z0-9_.]*))", // 2 external
+      "(" + SHEET_PREFIX + "(?:" + CELL + "|" + COLS + "|" + ROWS + "|#REF!))", // 3 sheet ref
+      "([A-Za-z_][A-Za-z0-9_.]*\\()", // 4 function
+      "(" + CELL + "|" + COLS + ")(?![A-Za-z0-9_(])", // 5 local ref
+      "((?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?%?)(?![A-Za-z0-9_])", // 6 number
+      "([A-Za-z_\\\\][A-Za-z0-9_.]*)", // 7 name / TRUE / FALSE
+      "([\\s\\S])", // 8 anything else
+    ].join("|"),
+    "gy"
+  );
+
+  function tokenizeFormula(formula, sheetName) {
+    const out = [];
+    if (typeof formula !== "string") return out;
+    const own = String(sheetName || "").toLowerCase();
+    const push = (text, kind) => {
+      const last = out[out.length - 1];
+      if (last && last.kind === kind && kind === "op") last.text += text;
+      else out.push({ text, kind });
+    };
+    TOKEN.lastIndex = 0;
+    let m;
+    while (TOKEN.lastIndex < formula.length && (m = TOKEN.exec(formula)) !== null) {
+      if (m[1]) push(m[1], "str");
+      else if (m[2]) push(m[2], "ext");
+      else if (m[3]) {
+        const sh = splitAddress(m[3]).sheet;
+        const kind = sh && !sh.includes(":") && sh.toLowerCase() === own ? "ref" : "xref";
+        push(m[3], kind);
+      } else if (m[4]) push(m[4], "fn");
+      else if (m[5]) push(m[5], "ref");
+      else if (m[6]) push(m[6], "num");
+      else push(m[7] || m[8], "op");
+    }
+    return out;
+  }
+
+  // Plain-language notes about a formula, for the "what is this cell" line.
+  //   { sheets: ["Page 2"], external: true/false, hardcoded: ["2025"] }
+  // 0 and 1 aren't reported as hard-codes (=A1*1, IF(x,0,…) are normal).
+  function describeFormula(formula, sheetName) {
+    const notes = { sheets: [], external: false, hardcoded: [] };
+    for (const t of tokenizeFormula(formula, sheetName)) {
+      if (t.kind === "ext") notes.external = true;
+      else if (t.kind === "xref") {
+        const sh = splitAddress(t.text).sheet;
+        if (!notes.sheets.includes(sh)) notes.sheets.push(sh);
+      } else if (t.kind === "num") {
+        const v = parseFloat(t.text);
+        if (v !== 0 && v !== 1 && !notes.hardcoded.includes(t.text)) notes.hardcoded.push(t.text);
+      }
+    }
+    return notes;
+  }
+
   // ---------------------------------------------------------------- utilities
 
   function formatCount(n) {
@@ -262,6 +332,8 @@
     RectMerger,
     scanBlock,
     planChunks,
+    tokenizeFormula,
+    describeFormula,
     formatCount,
     isHexColor,
   };

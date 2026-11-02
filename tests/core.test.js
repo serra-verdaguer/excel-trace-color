@@ -114,3 +114,21 @@ test("batchAddresses respects limits", () => {
   for (const b of batches) assert.ok(b.length <= 200);
   assert.equal(batches.join(",").split(",").length, 1000);
 });
+
+test("tokenizeFormula colours references, numbers and functions", () => {
+  const t = (f) => C.tokenizeFormula(f, "Model").filter((x) => x.kind !== "op").map((x) => x.kind + ":" + x.text);
+  assert.deepEqual(t("=+K47"), ["ref:K47"]);
+  assert.deepEqual(t("='Page 2'!D5+2025"), ["xref:'Page 2'!D5", "num:2025"]);
+  assert.deepEqual(t("=SUM($A$1:B9)*1.05"), ["fn:SUM(", "ref:$A$1:B9", "num:1.05"]);
+  assert.deepEqual(t("=Model!A1+Inputs!B2"), ["ref:Model!A1", "xref:Inputs!B2"]);
+  assert.deepEqual(t('=IF(A1>0,"Q4 2025",[1]Ext!C3)'), ["fn:IF(", "ref:A1", "num:0", 'str:"Q4 2025"', "ext:[1]Ext!C3"]);
+  assert.deepEqual(t("=LOG10(A1)+Rate"), ["fn:LOG10(", "ref:A1"]);
+  assert.deepEqual(t("=SUM(Jan:Dec!B2)"), ["fn:SUM(", "xref:Jan:Dec!B2"]);
+  assert.equal(C.tokenizeFormula("=A1 + B1", "S").map((x) => x.text).join(""), "=A1 + B1");
+});
+
+test("describeFormula explains a step in plain terms", () => {
+  assert.deepEqual(C.describeFormula("='Page 2'!D5+2025*12", "Model"), { sheets: ["Page 2"], external: false, hardcoded: ["2025", "12"] });
+  assert.deepEqual(C.describeFormula("=IF(A1>0,A1*1,0)", "Model"), { sheets: [], external: false, hardcoded: [] });
+  assert.equal(C.describeFormula("=[Budget.xlsx]P!A1", "Model").external, true);
+});

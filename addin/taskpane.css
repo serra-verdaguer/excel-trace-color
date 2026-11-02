@@ -169,3 +169,31 @@ main { flex: 1; overflow: auto; border-top: 1px solid var(--line); outline: none
 .legend input[type="color"] { width: 22px; height: 18px; padding: 0; border: 1px solid var(--line); background: none; }
 .status { padding: 4px 12px 6px; font-size: 12px; min-height: 24px; }
 .status.err { color: var(--err); }
+
+/* ---- coloured formulas & badges ---- */
+.fx { grid-column: 1 / -1; display: block; font: 11px Consolas, "Cascadia Mono", monospace; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fx.big { font-size: 13px; color: var(--fg); white-space: normal; word-break: break-all; }
+.tk-ref { color: var(--fg); font-weight: 600; }
+.tk-xref { color: #0b7a3b; font-weight: 600; background: rgba(16, 124, 65, 0.1); border-radius: 2px; }
+.tk-ext { color: #c42b1c; font-weight: 600; }
+.tk-num.hard { color: #0000ff; font-weight: 700; background: #ffffcc; border-radius: 2px; }
+.tk-fn { color: #7a4fb3; }
+.tk-str { color: #a15c00; }
+.badges, .notes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.notes { flex-direction: column; margin-top: 6px; }
+.badge { font-size: 11px; border-radius: 3px; padding: 0 5px; }
+.notes .badge { font-size: 12px; padding: 3px 6px; }
+.b-sheet { background: rgba(16, 124, 65, 0.12); color: #0b7a3b; }
+.b-ext { background: rgba(196, 43, 28, 0.12); color: #c42b1c; }
+.b-hard { background: #ffffcc; color: #0000c0; border: 1px solid #e6e09a; }
+@media (prefers-color-scheme: dark) {
+  .tk-xref, .b-sheet { color: #6fd39b; }
+  .tk-num.hard { color: #1a1aff; }
+}
+
+/* ---- "now on" card ---- */
+.now { padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--active); }
+.now-head { display: flex; align-items: baseline; gap: 6px; }
+.now-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.now-addr { font: 600 15px Consolas, "Cascadia Mono", monospace; }
+.now-value { margin-left: auto; font-weight: 600; }

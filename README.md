@@ -63,7 +63,13 @@ On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
   | `Ctrl+Alt+→` | Trace into the current one (it becomes the cell at the top) |
   | `Ctrl+Alt+←` | **Return to the cell you're analysing.** Press again to go back to the cell you analysed before |
 
-  Inside the pane, the plain arrow keys do the same, plus `Esc` for the start cell. On Mac use `⌘ ⌥` + arrows.
+  Inside the pane, the plain arrow keys do the same. **`Esc`** takes you back to your cell, closes the pane and stops tracing, so Excel behaves normally again (pressing `Ctrl+Alt+←` on your cell with nothing to go back to does the same). On Mac use `⌘ ⌥` + arrows.
+- **Every step is explained.** A green *"Feeds D10 · K47"* card shows the cell you're on, with its formula colored:
+  - **green**: references to another sheet (plus *"Takes data from another sheet: Page 2"*)
+  - **blue on yellow**: numbers typed into a formula, like `2025` (*"Consider moving it to an input cell"*)
+  - **red**: links to another file
+
+  Rows in the list carry the same hints as small badges (`↗ Page 2`, `⚠ 2025`).
 - **Sheet chips** (e.g. `Model · 3`, `Inputs · 1`) show which sheets the references come from. Click one to jump there.
 - **Never lose your place.** Every cell you analyse is remembered, even when *Follow selection* switches to a new cell because you clicked elsewhere. Use **↩ Return to D10** (while you're on a precedent) and **← Back to …** (the previous cell) at the top of the pane.
 - The trail at the top (e.g. `Model!D10 › Model!C1`) shows how you got there. Click any step to go back to it.
