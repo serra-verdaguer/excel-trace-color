@@ -7,10 +7,14 @@
 
   const state = {
     dir: "precedents",
-    depth: "direct",
-    result: null,
-    navigating: false,
+    result: null, // last trace
+    history: [], // origins we drilled in from (for ← back)
+    items: [], // rendered rows, in keyboard order: { area, sheet, el }
+    active: -1,
+    expectSel: null, // selection we caused ourselves (not a user click)
     autoTimer: null,
+    navTimer: null,
+    seq: 0, // ignores results of superseded traces
   };
   const $ = (id) => document.getElementById(id);
 
@@ -23,7 +27,7 @@
   }
 
   function busy(on) {
-    for (const id of ["traceBtn", "colorBtn", "colorWbBtn"]) $(id).disabled = on;
+    for (const id of ["colorBtn", "colorWbBtn"]) $(id).disabled = on;
   }
 
   function errText(err) {
@@ -73,36 +77,74 @@
 
   // ------------------------------------------------------------------- trace
 
-  function kind(dir, depth) {
-    if (dir === "precedents") return depth === "all" ? "precedents" : "directPrecedents";
-    return depth === "all" ? "dependents" : "directDependents";
+  const sameAddr = (a, b) => !!a && !!b && a.replace(/'/g, "").toLowerCase() === b.replace(/'/g, "").toLowerCase();
+
+  function kind() {
+    const all = $("allLevels").checked;
+    if (state.dir === "precedents") return all ? "precedents" : "directPrecedents";
+    return all ? "dependents" : "directDependents";
   }
 
+  /*
+   * opts.address : trace this address instead of the current selection
+   * opts.dir     : switch direction first
+   * opts.keepHistory : keep the drill-down path (used by drill / back)
+   */
   async function runTrace(opts) {
     opts = opts || {};
-    if (opts.dir) setSeg("dir", opts.dir);
-    if (opts.depth) setSeg("depth", opts.depth);
-    const k = kind(state.dir, state.depth);
-    busy(true);
+    if (opts.dir) setDir(opts.dir);
+    if (!opts.keepHistory) state.history = [];
+    const k = kind();
+    const seq = ++state.seq;
     status(window.TCTrace.KINDS[k].label + "…");
     const t0 = Date.now();
     try {
-      const res = await window.TCTrace.trace(k);
+      const res = await window.TCTrace.trace(k, opts.address);
+      if (seq !== state.seq) return; // a newer trace started meanwhile
       state.result = res;
-      $("originBtn").textContent = res.origin;
-      $("originBtn").title = "Go back to " + res.origin;
+      renderOrigin();
       render();
-      status(`${window.TCTrace.KINDS[k].label} of ${res.origin} · ${((Date.now() - t0) / 1000).toFixed(2)}s`);
+      const noun = state.dir === "precedents" ? "precedent" : "dependent";
+      status(`${C.formatCount(res.totalAreas)} ${noun}${res.totalAreas === 1 ? "" : "s"} · ${((Date.now() - t0) / 1000).toFixed(2)}s`);
     } catch (err) {
+      if (seq !== state.seq) return;
+      state.items = [];
       $("results").innerHTML = "";
       const p = document.createElement("p");
       p.className = "error";
       p.textContent = errText(err);
       $("results").appendChild(p);
       status("Trace failed", true);
-    } finally {
-      busy(false);
     }
+  }
+
+  function renderOrigin() {
+    const res = state.result;
+    const { sheet, local } = C.splitAddress(res.origin);
+    $("oSheet").textContent = sheet || "";
+    $("oSheet").classList.toggle("has", !!sheet);
+    $("oCell").textContent = local;
+    $("oValue").textContent = res.originCells > 1 ? `${C.formatCount(res.originCells)} cells` : res.originValue || "";
+    $("oFormula").textContent = res.originCells > 1 ? "" : res.originFormula || "";
+    $("originBtn").title = `Go back to ${res.origin} (Esc)`;
+
+    // Breadcrumb: where we drilled in from.
+    const crumbs = $("crumbs");
+    crumbs.innerHTML = "";
+    state.history.forEach((addr, i) => {
+      const b = document.createElement("button");
+      b.textContent = addr;
+      b.title = "Go back to " + addr;
+      b.addEventListener("click", () => back(state.history.length - i));
+      const sep = document.createElement("span");
+      sep.className = "sep";
+      sep.textContent = "›";
+      crumbs.append(b, sep);
+    });
+
+    const n = res.totalAreas ? ` (${C.formatCount(res.totalAreas)})` : " (0)";
+    $("nPrec").textContent = state.dir === "precedents" ? n : "";
+    $("nDep").textContent = state.dir === "dependents" ? n : "";
   }
 
   function matches(area, sheet, q) {
@@ -119,148 +161,191 @@
     const res = state.result;
     const root = $("results");
     root.innerHTML = "";
+    state.items = [];
+    state.active = -1;
     if (!res) return;
-    const q = $("filter").value.trim().toLowerCase();
-    const noun = state.dir === "precedents" ? "precedents" : "dependents";
+    $("filter").hidden = res.totalAreas <= 15;
+    const q = $("filter").hidden ? "" : $("filter").value.trim().toLowerCase();
     if (!res.groups.length) {
-      root.innerHTML = `<p class="empty">No ${noun} found for this cell.</p>`;
-      $("summary").textContent = "";
+      const noun = state.dir === "precedents" ? "precedents" : "dependents";
+      const hint = state.dir === "precedents" ? "It is a hard-coded value or has no cell references." : "No formula uses this cell.";
+      root.innerHTML = `<div class="empty"><p><b>No ${noun}.</b></p><p>${hint}</p></div>`;
       return;
     }
-    $("summary").textContent = `${C.formatCount(res.totalCells)} cells · ${res.groups.length} sheet${res.groups.length > 1 ? "s" : ""}`;
+    const originSheet = C.splitAddress(res.origin).sheet;
     for (const g of res.groups) {
       const areas = g.areas.filter((a) => matches(a, g.sheet, q));
       if (!areas.length) continue;
-      const det = document.createElement("details");
-      det.className = "group";
-      det.open = true;
-      const sum = document.createElement("summary");
+      const h = document.createElement("div");
+      h.className = "sheet-h";
       const name = document.createElement("span");
       name.textContent = g.sheet;
-      const sel = document.createElement("button");
-      sel.className = "link small";
-      sel.textContent = "select all";
-      sel.title = "Select every listed range on this sheet";
-      sel.addEventListener("click", async (e) => {
-        e.preventDefault();
-        await navigate(() => window.TCTrace.selectAll(g.sheet, areas.map((a) => a.local))).then((complete) => {
-          if (complete === false) status("Selected the first batch only – the list is too long for one selection.");
-        });
-      });
-      const count = document.createElement("span");
-      count.className = "count";
-      const cells = areas.reduce((s, a) => s + a.cells, 0);
-      count.textContent = `${C.formatCount(cells)} cells`;
-      sum.append(name, sel, count);
-      det.appendChild(sum);
-      const list = document.createElement("div");
-      det.appendChild(list);
-      renderRows(list, areas, 0, 0);
-      root.appendChild(det);
+      h.appendChild(name);
+      if (g.sheet === originSheet) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = "this sheet";
+        h.appendChild(tag);
+      }
+      const n = document.createElement("span");
+      n.className = "n";
+      n.textContent = C.formatCount(areas.length);
+      h.appendChild(n);
+      root.appendChild(h);
+      renderItems(root, h, g.sheet, areas, 0);
     }
-    if (!root.children.length) root.innerHTML = `<p class="empty">Nothing matches the filter.</p>`;
+    if (!state.items.length) root.innerHTML = `<div class="empty"><p>Nothing matches the filter.</p></div>`;
   }
 
-  function renderRows(container, areas, start, depth, path) {
+  // Appends rows after `anchor`; keeps state.items in on-screen order.
+  function renderItems(root, anchor, sheet, areas, start) {
     const end = Math.min(areas.length, start + PAGE);
-    for (let i = start; i < end; i++) container.appendChild(rowEl(areas[i], depth, path || []));
+    let after = anchor;
+    const newItems = [];
+    for (let i = start; i < end; i++) {
+      const it = { area: areas[i], sheet, el: itemEl(areas[i]) };
+      after.after(it.el);
+      after = it.el;
+      newItems.push(it);
+    }
+    // Insert into the flat list right after the anchor's last item.
+    const prev = state.items.findIndex((x) => x.el === anchor);
+    const pos = prev >= 0 ? prev + 1 : itemsBefore(anchor);
+    state.items.splice(pos, 0, ...newItems);
+    newItems.forEach((it) => it.el.addEventListener("click", () => activate(state.items.indexOf(it), true)));
+    newItems.forEach((it) => it.el.addEventListener("dblclick", () => drill(state.items.indexOf(it))));
     if (end < areas.length) {
       const more = document.createElement("button");
       more.className = "more";
       more.textContent = `Show ${C.formatCount(Math.min(PAGE, areas.length - end))} more (${C.formatCount(areas.length - end)} left)`;
       more.addEventListener("click", () => {
+        const last = after;
         more.remove();
-        renderRows(container, areas, end, depth, path);
+        renderItems(root, last, sheet, areas, end);
       });
-      container.appendChild(more);
+      after.after(more);
     }
   }
 
-  function rowEl(area, depth, path) {
-    const wrap = document.createElement("div");
-    const row = document.createElement("div");
-    row.className = "row";
-    row.style.setProperty("--depth", depth);
-    row.title = area.address + (area.formula ? "\n" + area.formula : "");
+  function itemsBefore(node) {
+    let count = 0;
+    for (const it of state.items) {
+      if (it.el.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) count++;
+    }
+    return count;
+  }
 
-    const exp = document.createElement("button");
-    exp.className = "exp";
-    exp.textContent = "▸";
-    exp.title = `Show this range's direct ${state.dir}`;
+  function itemEl(area) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.title = area.address + (area.formula ? "\n" + area.formula : "") + "\nDouble-click or → to trace into it";
     const addr = document.createElement("span");
     addr.className = "addr";
-    addr.textContent = depth ? area.address : area.local;
-    const detail = document.createElement("span");
-    detail.className = "detail";
-    if (area.cells > 1) {
-      detail.textContent = `${C.formatCount(area.cells)} cells`;
-    } else {
-      if (area.value !== undefined) {
-        const b = document.createElement("b");
-        b.textContent = area.value;
-        detail.appendChild(b);
-      }
-      if (area.formula) detail.appendChild(document.createTextNode("  " + area.formula));
+    addr.textContent = area.local;
+    const val = document.createElement("span");
+    val.className = "val";
+    val.textContent = area.cells > 1 ? `${C.formatCount(area.cells)} cells` : area.value !== undefined ? area.value : "";
+    row.append(addr, val);
+    if (area.formula) {
+      const fx = document.createElement("span");
+      fx.className = "fx";
+      fx.textContent = area.formula;
+      row.appendChild(fx);
     }
-    row.append(exp, addr, detail);
-
-    const children = document.createElement("div");
-    children.className = "children";
-    row.addEventListener("click", () => navigate(() => window.TCTrace.goTo(area.address)));
-    exp.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (children.childElementCount) {
-        children.innerHTML = "";
-        exp.textContent = "▸";
-        return;
-      }
-      if (path.includes(area.address)) {
-        status("Circular reference – " + area.address + " is already in this branch.");
-        return;
-      }
-      exp.textContent = "…";
-      try {
-        const k = kind(state.dir, "direct");
-        const sub = await window.TCTrace.trace(k, area.address);
-        const flat = [];
-        for (const g of sub.groups) for (const a of g.areas) flat.push(a);
-        if (!flat.length) {
-          exp.textContent = "·";
-          exp.title = `No ${state.dir}`;
-          return;
-        }
-        exp.textContent = "▾";
-        renderRows(children, flat, 0, depth + 1, path.concat(area.address));
-      } catch (err) {
-        exp.textContent = "!";
-        status(errText(err), true);
-      }
-    });
-    wrap.append(row, children);
-    return wrap;
+    return row;
   }
 
-  // Selection changes we cause ourselves must not trigger auto-trace.
-  async function navigate(fn) {
-    state.navigating = true;
+  // Highlights row i and (optionally) selects it in Excel.
+  function activate(i, go) {
+    if (!state.items.length) return;
+    i = Math.max(0, Math.min(state.items.length - 1, i));
+    if (state.active >= 0 && state.items[state.active]) state.items[state.active].el.classList.remove("active");
+    state.active = i;
+    const it = state.items[i];
+    it.el.classList.add("active");
+    it.el.scrollIntoView({ block: "nearest" });
+    if (go) {
+      // Debounced, so holding ↓ doesn't queue dozens of jumps.
+      clearTimeout(state.navTimer);
+      state.navTimer = setTimeout(() => goTo(it.area.address), 60);
+    }
+  }
+
+  async function goTo(address) {
+    state.expectSel = address;
     try {
-      return await fn();
+      await window.TCTrace.goTo(address);
     } catch (err) {
       status("Could not go there: " + errText(err), true);
-    } finally {
-      setTimeout(() => { state.navigating = false; }, 400);
     }
   }
 
-  function setSeg(attr, value) {
-    state[attr] = value;
-    document.querySelectorAll(`[data-${attr}]`).forEach((b) => b.classList.toggle("on", b.dataset[attr] === value));
+  // Makes row i the new traced cell (→ / Enter / double-click).
+  async function drill(i) {
+    const it = state.items[i];
+    if (!it || !state.result) return;
+    if (sameAddr(it.area.address, state.result.origin) || state.history.some((h) => sameAddr(h, it.area.address))) {
+      status("Circular reference: " + it.area.address + " is already in this path.", true);
+      return;
+    }
+    state.history.push(state.result.origin);
+    await goTo(it.area.address);
+    await runTrace({ address: it.area.address, keepHistory: true });
+    activate(0, false);
+  }
+
+  // Goes back `steps` levels in the drill-down path (← / Backspace / breadcrumb).
+  async function back(steps) {
+    if (!state.history.length) return;
+    const from = state.result && state.result.origin;
+    let target;
+    for (let s = 0; s < (steps || 1) && state.history.length; s++) target = state.history.pop();
+    await goTo(target);
+    await runTrace({ address: target, keepHistory: true });
+    const idx = state.items.findIndex((x) => sameAddr(x.area.address, from));
+    activate(idx >= 0 ? idx : 0, false);
+  }
+
+  function setDir(dir) {
+    state.dir = dir;
+    document.querySelectorAll("[data-dir]").forEach((b) => b.classList.toggle("on", b.dataset.dir === dir));
+  }
+
+  function onKey(e) {
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA") && t.type !== "checkbox") {
+      if (e.key === "ArrowDown" && t.id === "filter") { activate(0, true); $("results").focus(); e.preventDefault(); }
+      return;
+    }
+    switch (e.key) {
+      case "ArrowDown": activate(state.active + 1, true); break;
+      case "ArrowUp": activate(state.active - 1, true); break;
+      case "Home": activate(0, true); break;
+      case "End": activate(state.items.length - 1, true); break;
+      case "PageDown": activate(state.active + 10, true); break;
+      case "PageUp": activate(state.active - 10, true); break;
+      case "ArrowRight":
+      case "Enter": drill(state.active < 0 ? 0 : state.active); break;
+      case "ArrowLeft":
+      case "Backspace": back(1); break;
+      case "Escape": if (state.result) goTo(state.result.origin); break;
+      default: return;
+    }
+    e.preventDefault();
   }
 
   async function onSelectionChanged() {
-    if (!$("autoTrace").checked || state.navigating) return;
+    if (!$("autoTrace").checked) return;
     clearTimeout(state.autoTimer);
-    state.autoTimer = setTimeout(() => runTrace(), 250);
+    state.autoTimer = setTimeout(async () => {
+      try {
+        const addr = await window.TCTrace.getSelectionAddress();
+        if (sameAddr(addr, state.expectSel)) return; // we moved there ourselves
+        if (state.result && sameAddr(addr, state.result.origin)) return;
+        state.expectSel = null;
+        runTrace();
+      } catch (e) { /* ignore */ }
+    }, 200);
   }
 
   // ---------------------------------------------------------------- commands
@@ -277,10 +362,16 @@
 
   function wireCommands() {
     if (!Office.actions || !Office.actions.associate) return;
-    Office.actions.associate("tracePrecedents", command(async () => { await showPane(); await runTrace({ dir: "precedents", depth: "direct" }); }));
-    Office.actions.associate("traceAllPrecedents", command(async () => { await showPane(); await runTrace({ dir: "precedents", depth: "all" }); }));
-    Office.actions.associate("traceDependents", command(async () => { await showPane(); await runTrace({ dir: "dependents", depth: "direct" }); }));
-    Office.actions.associate("traceAllDependents", command(async () => { await showPane(); await runTrace({ dir: "dependents", depth: "all" }); }));
+    const traceCmd = (dir, all) => command(async () => {
+      await showPane();
+      $("allLevels").checked = all;
+      await runTrace({ dir });
+      $("results").focus();
+    });
+    Office.actions.associate("tracePrecedents", traceCmd("precedents", false));
+    Office.actions.associate("traceAllPrecedents", traceCmd("precedents", true));
+    Office.actions.associate("traceDependents", traceCmd("dependents", false));
+    Office.actions.associate("traceAllDependents", traceCmd("dependents", true));
     Office.actions.associate("colorCode", command(() => runColor("smart")));
     Office.actions.associate("colorCodeWorkbook", command(() => runColor("workbook")));
     Office.actions.associate("showPane", command(showPane));
@@ -289,12 +380,13 @@
   // -------------------------------------------------------------------- boot
 
   function wireUi() {
-    document.querySelectorAll("[data-dir]").forEach((b) => b.addEventListener("click", () => { setSeg("dir", b.dataset.dir); runTrace(); }));
-    document.querySelectorAll("[data-depth]").forEach((b) => b.addEventListener("click", () => { setSeg("depth", b.dataset.depth); runTrace(); }));
-    $("traceBtn").addEventListener("click", () => runTrace());
-    $("originBtn").addEventListener("click", () => state.result && navigate(() => window.TCTrace.goTo(state.result.origin)));
+    const retrace = () => state.result && runTrace({ address: state.result.origin, keepHistory: true });
+    document.querySelectorAll("[data-dir]").forEach((b) => b.addEventListener("click", () => { setDir(b.dataset.dir); retrace(); }));
+    $("allLevels").addEventListener("change", retrace);
+    $("originBtn").addEventListener("click", () => state.result && goTo(state.result.origin));
     let ft;
     $("filter").addEventListener("input", () => { clearTimeout(ft); ft = setTimeout(render, 120); });
+    document.addEventListener("keydown", onKey);
     $("colorBtn").addEventListener("click", () => runColor("smart"));
     $("colorWbBtn").addEventListener("click", () => {
       if (confirm("Color code every sheet in this workbook? Existing font colors on numbers and formulas (and the background of inputs) will be replaced.")) runColor("workbook");
@@ -356,5 +448,6 @@
     } catch (e) { /* auto-trace unavailable */ }
     const ok = window.TCTrace.supported("dependents");
     status(ok ? "Ready." : "Ready. Some trace modes need a newer Excel (Microsoft 365).");
+    runTrace(); // trace whatever cell is selected right now
   });
 })();

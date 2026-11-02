@@ -8,40 +8,47 @@
   <link rel="stylesheet" href="taskpane.css" />
 </head>
 <body>
-  <header class="bar">
-    <div class="origin">
-      <span class="muted">Cell</span>
-      <button id="originBtn" class="link" title="Go back to the traced cell">—</button>
+  <!-- The cell being traced -->
+  <section class="origin" id="origin">
+    <nav class="crumbs" id="crumbs" aria-label="Trace path"></nav>
+    <div class="origin-row">
+      <button class="origin-addr" id="originBtn" title="Go back to this cell (Esc)">
+        <span class="o-sheet" id="oSheet">Select a cell</span><span class="o-cell" id="oCell"></span>
+      </button>
+      <span class="o-value" id="oValue"></span>
     </div>
-    <label class="toggle" title="Re-trace automatically whenever you select another cell">
-      <input type="checkbox" id="autoTrace" /> Auto
-    </label>
-  </header>
-
-  <section class="actions">
-    <div class="seg" role="group" aria-label="Direction">
-      <button data-dir="precedents" class="on">Precedents</button>
-      <button data-dir="dependents">Dependents</button>
-    </div>
-    <div class="seg" role="group" aria-label="Depth">
-      <button data-depth="direct" class="on">Direct</button>
-      <button data-depth="all">All levels</button>
-    </div>
-    <button id="traceBtn" class="primary">Trace</button>
+    <code class="o-formula" id="oFormula"></code>
   </section>
 
-  <section class="filterbar">
-    <input id="filter" type="search" placeholder="Filter by sheet, address, value or formula…" />
-    <span id="summary" class="muted"></span>
-  </section>
+  <!-- Direction -->
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-dir="precedents" class="on" title="Cells this cell uses">← Precedents <span class="n" id="nPrec"></span></button>
+    <button role="tab" data-dir="dependents" title="Cells that use this cell">Dependents → <span class="n" id="nDep"></span></button>
+  </nav>
+  <div class="opts">
+    <label title="Show every level, not just the cells referenced directly"><input type="checkbox" id="allLevels" /> All levels</label>
+    <label title="Trace automatically whenever you click another cell"><input type="checkbox" id="autoTrace" checked /> Follow selection</label>
+    <input id="filter" type="search" placeholder="Filter…" hidden />
+  </div>
 
-  <main id="results" aria-live="polite">
-    <p class="empty">Select a cell and press <b>Trace</b> (or use the ribbon buttons).<br />Click any result to jump to it. ▸ drills one level further.</p>
+  <!-- Results, grouped by sheet -->
+  <main id="results" tabindex="0" aria-live="polite">
+    <div class="empty">
+      <p><b>Click any cell</b> in your model.</p>
+      <p>Its precedents appear here, grouped by sheet.</p>
+    </div>
   </main>
+  <footer class="keys" id="keys">
+    <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
+    <span><kbd>→</kbd> trace into</span>
+    <span><kbd>←</kbd> back</span>
+    <span><kbd>Esc</kbd> start cell</span>
+  </footer>
 
-  <section class="color">
+  <!-- Color coding (tucked away) -->
+  <details class="color">
+    <summary>Color code</summary>
     <div class="color-head">
-      <h2>Color code</h2>
       <button id="colorBtn" class="primary" title="Selection if more than one cell is selected, otherwise the whole sheet">Color sheet / selection</button>
       <button id="colorWbBtn">Whole workbook</button>
     </div>
@@ -54,7 +61,7 @@
         <button id="matchFill" class="link small" title="Use the background of the selected cell as the input background">match selected cell</button></label>
       <button id="resetColors" class="link small">Reset colors</button>
     </div>
-  </section>
+  </details>
 
   <footer id="status" class="status muted">Loading…</footer>
 

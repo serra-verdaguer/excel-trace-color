@@ -49,9 +49,21 @@
         src = context.workbook.getSelectedRange();
       }
       src.load("address,cellCount");
+      const first = src.getCell(0, 0);
+      first.load("formulas,text");
       await context.sync();
 
-      const result = { kind, origin: src.address, groups: [], totalCells: 0, totalAreas: 0 };
+      const f0 = first.formulas[0][0];
+      const result = {
+        kind,
+        origin: src.address,
+        originCells: src.cellCount,
+        originValue: first.text[0][0],
+        originFormula: typeof f0 === "string" && f0[0] === "=" ? f0 : null,
+        groups: [],
+        totalCells: 0,
+        totalAreas: 0,
+      };
       const wra = src[k.method]();
       wra.areas.load("items/worksheet/name,items/areas/items/address,items/areas/items/cellCount");
       try {

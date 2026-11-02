@@ -62,12 +62,21 @@ Updates are automatic. The add-in's code is served from GitHub Pages, so when th
 On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
 
 ### Trace pane
-- **Click** a result to jump to it. Click the cell name at the top to go **back** to where you started.
-- **▸** drills one level further from that result, building a tree as you audit. Circular references are detected.
-- **Filter** by sheet, address, value or formula, which helps when a total has thousands of inputs.
-- **select all** selects every listed range on that sheet at once.
-- **Auto** re-traces whenever you click another cell.
-- Results are grouped by sheet. The current sheet is listed first.
+- **Click any cell.** The top of the pane shows that cell (sheet, address, value and formula), and its precedents appear below, grouped by sheet.
+- **Move with the keyboard.** Click once inside the pane, then:
+
+  | Key | Action |
+  |---|---|
+  | `↑` `↓` | Move through the list. Excel jumps to each cell as you go |
+  | `→` or `Enter` | Trace into that cell (it becomes the new cell at the top) |
+  | `←` or `Backspace` | Go back one level |
+  | `Esc` | Jump back to the cell you started from |
+  | `Home` `End` `PgUp` `PgDn` | Jump through long lists |
+
+- The trail at the top (e.g. `Model!D10 › Model!C1`) shows how you got there. Click any step to go back to it.
+- **Precedents / Dependents** tabs switch direction. **All levels** shows everything upstream or downstream.
+- **Follow selection** (on by default) re-traces whenever you click a new cell in Excel.
+- A filter box appears automatically when there are more than 15 results.
 
 ## Built for huge workbooks
 
