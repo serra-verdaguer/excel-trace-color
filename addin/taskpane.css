@@ -2,13 +2,19 @@
   --bg: #ffffff;
   --fg: #1f1f1f;
   --muted: #6b6b6b;
-  --line: #e1e1e1;
+  --line: #e3e3e3;
   --hover: #f3f6f4;
   --accent: #107c41; /* Excel green */
   --accent-fg: #ffffff;
-  --active: #d7eedf;
-  --origin-bg: #f1f8f4;
+  --cursor: #cfe9d9; /* the highlighted row = where Excel is */
+  --home-bg: #f1f8f4;
+  --sheet: #0b7a3b;
+  --sheet-bg: rgba(16, 124, 65, 0.12);
+  --hard: #0000c0;
+  --hard-bg: #ffffcc;
+  --ext: #c42b1c;
   --err: #c42b1c;
+  --row-h: 28px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -19,8 +25,13 @@
     --hover: #2a302c;
     --accent: #3fae6a;
     --accent-fg: #0d0d0d;
-    --active: #24452f;
-    --origin-bg: #232b26;
+    --cursor: #2c5a3c;
+    --home-bg: #232b26;
+    --sheet: #6fd39b;
+    --sheet-bg: rgba(63, 174, 106, 0.18);
+    --hard: #9db4ff;
+    --hard-bg: #3a3820;
+    --ext: #ff8a7a;
     --err: #ff8a7a;
   }
 }
@@ -33,6 +44,7 @@ body {
   font: 13px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--fg);
+  overflow: hidden;
 }
 button {
   font: inherit;
@@ -40,15 +52,16 @@ button {
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 5px 10px;
+  padding: 4px 10px;
   cursor: pointer;
 }
 button:hover { background: var(--hover); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+button.ghost { border: none; color: var(--muted); font-size: 15px; padding: 2px 8px; }
 button.link { border: none; padding: 0; color: var(--accent); text-decoration: underline; background: none; }
 button.small { font-size: 12px; }
 button:disabled { opacity: 0.5; cursor: progress; }
-.muted { color: var(--muted); }
+.mono { font-family: Consolas, "Cascadia Mono", monospace; }
 kbd {
   font: 11px Consolas, monospace;
   border: 1px solid var(--line);
@@ -56,162 +69,89 @@ kbd {
   border-radius: 3px;
   padding: 0 4px;
   margin-right: 2px;
-  background: var(--bg);
 }
 
-/* ---- origin card ---- */
-.origin { border-left: 4px solid transparent; transition: border-color 0.15s; }
-.origin.here { border-left-color: var(--accent); }
-.origin { background: var(--origin-bg); border-bottom: 1px solid var(--line); padding: 8px 12px 10px; }
-.crumbs { display: flex; flex-wrap: wrap; gap: 2px 4px; font-size: 11px; color: var(--muted); min-height: 14px; }
-.crumbs button { border: none; padding: 0; color: var(--accent); font-size: 11px; }
-.crumbs .sep { color: var(--muted); }
-.origin-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; }
-.origin-addr { border: none; padding: 0; text-align: left; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.origin-addr:hover { background: none; text-decoration: underline; }
-.o-sheet { font-size: 13px; color: var(--muted); }
-.o-sheet.has::after { content: " ›"; }
-.o-cell { font: 600 20px Consolas, "Cascadia Mono", monospace; margin-left: 6px; }
-.o-value { font-size: 16px; font-weight: 600; white-space: nowrap; }
-.o-formula {
-  display: block;
-  margin-top: 4px;
-  font: 12px Consolas, "Cascadia Mono", monospace;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.o-formula:empty { display: none; }
-.nav-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.nav-btns:not(:has(button:not([hidden]))) { display: none; }
-.nav-btns button { padding: 3px 10px; font-size: 12px; }
+/* ---- top bar ---- */
+.top { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; padding: 4px 14px; }
+.seg button:first-child { border-radius: 4px 0 0 4px; }
+.seg button:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+.seg button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
 
-/* ---- tabs ---- */
-.tabs { display: flex; border-bottom: 1px solid var(--line); }
-.tabs button {
-  flex: 1;
-  border: none;
-  border-radius: 0;
-  border-bottom: 3px solid transparent;
-  padding: 8px 6px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.tabs button.on { color: var(--fg); border-bottom-color: var(--accent); }
-.tabs .n { font-weight: 400; color: var(--muted); }
-.opts { display: flex; align-items: center; gap: 12px; padding: 6px 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
-.opts label { display: flex; align-items: center; gap: 4px; }
-#filter {
-  flex: 1;
-  min-width: 80px;
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 3px 6px;
-}
+/* ---- your cell ---- */
+.home { padding: 8px 12px 10px; background: var(--home-bg); border-left: 5px solid transparent; cursor: pointer; border-bottom: 1px solid var(--line); }
+.home.cur { border-left-color: var(--accent); background: var(--cursor); }
+.home-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); }
+.home.cur .home-label::after { content: "  ◀ EXCEL IS HERE"; color: var(--accent); }
+.home-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.home-addr { font: 700 18px Consolas, "Cascadia Mono", monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-val { font-size: 16px; font-weight: 600; white-space: nowrap; }
 
-/* ---- results ---- */
-main { flex: 1; overflow: auto; border-top: 1px solid var(--line); outline: none; }
-.empty { padding: 20px 14px; color: var(--muted); }
-.empty p { margin: 0 0 4px; }
-.error { padding: 12px; color: var(--err); }
-.sheet-h {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+/* ---- tree (virtualised: rows are absolutely positioned) ---- */
+#tree { position: relative; flex: 1; min-height: 120px; overflow-y: auto; overflow-x: hidden; outline: none; }
+#tree:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+#spacer { width: 1px; }
+#rows { position: absolute; top: 0; left: 0; right: 0; }
+.row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--row-h);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
-  font-weight: 600;
-}
-.sheet-h .tag { font-size: 11px; font-weight: 400; color: var(--muted); }
-.sheet-h .n { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 12px; }
-.item {
-  display: grid;
-  grid-template-columns: 18px minmax(60px, auto) 1fr;
-  column-gap: 10px;
-  padding: 4px 12px 4px 20px;
-  cursor: pointer;
-  border-left: 3px solid transparent;
-}
-.item:hover { background: var(--hover); }
-.item.visited .addr::after { content: " ✓"; color: var(--accent); font-weight: 400; }
-.item.active { background: var(--active); border-left-color: var(--accent); }
-.item .addr { font: 600 13px Consolas, "Cascadia Mono", monospace; }
-.item .val { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.item .fx {
-  grid-column: 1 / -1;
-  font: 11px Consolas, "Cascadia Mono", monospace;
-  color: var(--muted);
+  gap: 6px;
+  padding-right: 10px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  border-left: 5px solid transparent;
 }
-.more { margin: 6px 20px; }
-.keys-title { width: 100%; font-weight: 600; color: var(--fg); }
-.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 12px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+.row:hover { background: var(--hover); }
+.row.cur { background: var(--cursor); border-left-color: var(--accent); }
+.row .tw { width: 14px; flex: none; text-align: center; color: var(--muted); font-size: 11px; }
+.row .guide { flex: none; height: 100%; border-right: 1px dotted var(--line); }
+.row .addr { font: 600 13px Consolas, "Cascadia Mono", monospace; }
+.row .pill { flex: none; font-size: 11px; font-weight: 600; color: var(--sheet); background: var(--sheet-bg); border-radius: 3px; padding: 0 5px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+.row .icons { flex: none; display: flex; gap: 3px; font-size: 11px; }
+.row .ic-fx { color: var(--muted); font-style: italic; font-family: Georgia, serif; }
+.row .ic-hard { color: var(--hard); background: var(--hard-bg); border-radius: 2px; padding: 0 3px; font-weight: 700; }
+.row .ic-ext { color: var(--ext); font-weight: 700; }
+.row .ic-loop { color: var(--err); }
+.row .val { margin-left: auto; padding-left: 8px; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+.row.more { color: var(--accent); font-size: 12px; }
+.empty { position: absolute; inset: 0; padding: 20px 14px; color: var(--muted); }
 
-/* ---- color section ---- */
-.color { border-top: 1px solid var(--line); padding: 6px 12px; }
-.color summary { cursor: pointer; font-weight: 600; padding: 2px 0; }
-.color-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 8px; font-size: 12px; }
-.legend label { display: flex; align-items: center; gap: 6px; }
-.legend input[type="color"] { width: 22px; height: 18px; padding: 0; border: 1px solid var(--line); background: none; }
-.status { padding: 4px 12px 6px; font-size: 12px; min-height: 24px; }
-.status.err { color: var(--err); }
+/* ---- detail of the highlighted row ---- */
+.detail { border-top: 2px solid var(--accent); padding: 8px 12px; min-height: 96px; max-height: 40%; overflow: auto; background: var(--bg); }
+.path { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.path span { direction: ltr; unicode-bidi: embed; }
+.path b { color: var(--fg); }
+.d-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.d-addr { font: 700 15px Consolas, "Cascadia Mono", monospace; }
+.d-val { font-weight: 600; }
 
-/* ---- coloured formulas & badges ---- */
-.fx { grid-column: 1 / -1; display: block; font: 11px Consolas, "Cascadia Mono", monospace; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fx.big { font-size: 13px; color: var(--fg); white-space: normal; word-break: break-all; }
-.tk-ref { color: var(--fg); font-weight: 600; }
-.tk-xref { color: #0b7a3b; font-weight: 600; background: rgba(16, 124, 65, 0.1); border-radius: 2px; }
-.tk-ext { color: #c42b1c; font-weight: 600; }
-.tk-num.hard { color: #0000ff; font-weight: 700; background: #ffffcc; border-radius: 2px; }
+/* ---- formulas ---- */
+.fx { display: block; margin-top: 3px; font: 12px/1.45 Consolas, "Cascadia Mono", monospace; white-space: normal; word-break: break-all; }
+.tk-ref { font-weight: 600; }
+.tk-xref { color: var(--sheet); font-weight: 600; background: var(--sheet-bg); border-radius: 2px; }
+.tk-ext { color: var(--ext); font-weight: 600; }
+.tk-num.hard { color: var(--hard); font-weight: 700; background: var(--hard-bg); border-radius: 2px; }
 .tk-fn { color: #7a4fb3; }
 .tk-str { color: #a15c00; }
-.badges, .notes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-.notes { flex-direction: column; margin-top: 6px; }
-.badge { font-size: 11px; border-radius: 3px; padding: 0 5px; }
-.notes .badge { font-size: 12px; padding: 3px 6px; }
-.b-sheet { background: rgba(16, 124, 65, 0.12); color: #0b7a3b; }
-.b-ext { background: rgba(196, 43, 28, 0.12); color: #c42b1c; }
-.b-hard { background: #ffffcc; color: #0000c0; border: 1px solid #e6e09a; }
-@media (prefers-color-scheme: dark) {
-  .tk-xref, .b-sheet { color: #6fd39b; }
-  .tk-num.hard { color: #1a1aff; }
-}
+.notes { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.note { font-size: 12px; border-radius: 3px; padding: 2px 6px; }
+.n-sheet { background: var(--sheet-bg); color: var(--sheet); }
+.n-hard { background: var(--hard-bg); color: var(--hard); }
+.n-ext { background: rgba(196, 43, 28, 0.12); color: var(--ext); }
+.n-info { color: var(--muted); padding-left: 0; }
 
-/* ---- "now on" card ---- */
-.now { padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--active); }
-.now-head { display: flex; align-items: baseline; gap: 6px; }
-.now-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-.now-addr { font: 600 15px Consolas, "Cascadia Mono", monospace; }
-.now-value { margin-left: auto; font-weight: 600; }
-
-/* ---- formula-order list ---- */
-.list { padding-bottom: 8px; }
-.item .num { color: var(--muted); font-size: 11px; text-align: right; padding-top: 2px; }
-.item .fx, .item .badges, .item .dig { grid-column: 2 / -1; }
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px 3px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #0b7a3b;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.divider::after { content: ""; flex: 1; border-top: 1px dashed currentColor; opacity: 0.6; }
-.divider.own { color: var(--muted); }
-.dig { font-size: 11px; color: var(--accent); margin-top: 2px; cursor: pointer; }
-.item:not(.active) .dig { opacity: 0.75; }
-.item.active .dig { font-weight: 600; opacity: 1; }
+/* ---- keys, colors, status ---- */
+.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 12px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+.color { border-top: 1px solid var(--line); padding: 4px 12px; font-size: 12px; }
+.color summary { cursor: pointer; color: var(--muted); padding: 2px 0; }
+.color-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 8px 0 4px; }
+.legend label { display: flex; align-items: center; gap: 6px; }
+.legend input[type="color"] { width: 22px; height: 18px; padding: 0; border: 1px solid var(--line); background: none; }
+.status { padding: 3px 12px 5px; font-size: 11px; color: var(--muted); min-height: 20px; }
+.status.err { color: var(--err); }

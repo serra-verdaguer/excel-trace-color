@@ -1,21 +1,35 @@
-/* Task pane UI + ribbon/keyboard command wiring (shared runtime). */
+/*
+ * Task pane UI + ribbon/keyboard command wiring (shared runtime).
+ *
+ * The trace view is a tree rooted at YOUR CELL, which stays pinned at the top.
+ * Precedents (or dependents) open underneath it like folders, so you always
+ * see where you are relative to where you started. Exactly one row is
+ * highlighted, and it is always the cell Excel has selected.
+ *
+ *   ↑ ↓  move (Excel follows)     →  open / step into     ←  one step back
+ *   Home your cell                Esc back to your cell and close the pane
+ *
+ * Built for big models: the list only draws the rows on screen, and cell
+ * values/formulas are fetched lazily for the rows you scroll to.
+ */
 (function () {
   "use strict";
   const C = window.TCCore;
-  const PAGE = 200; // rows rendered per sheet before "Show more"
   const COLOR_KEY = "tc.colors";
+  const ROW_H = 28; // keep in sync with --row-h
+  const PAD_ROWS = 8; // rows drawn above/below the viewport
 
-  const state = {
+  const S = {
     dir: "precedents",
-    result: null, // last trace
-    history: [], // origins we drilled in from (for ← back)
-    items: [], // rendered rows, in keyboard order: { area, sheet, el }
-    active: -1,
-    expectSel: null, // selection we caused ourselves (not a user click)
-    autoTimer: null,
+    root: null, // node for YOUR CELL
+    rows: [], // visible nodes in order (flattened tree)
+    cur: -1, // index into rows; -1 = YOUR CELL
+    paused: false, // after Esc: pane closed, selection no longer followed
+    expectSel: null, // selection we caused ourselves
+    seq: 0,
     navTimer: null,
-    seq: 0, // ignores results of superseded traces
-    paused: false, // after Esc: pane hidden, selection no longer followed
+    autoTimer: null,
+    fetchTimer: null,
   };
   const $ = (id) => document.getElementById(id);
 
@@ -76,57 +90,235 @@
     }
   }
 
-  // ------------------------------------------------------------------- trace
+  // ------------------------------------------------------------- tree model
 
   const sameAddr = (a, b) => !!a && !!b && a.replace(/'/g, "").toLowerCase() === b.replace(/'/g, "").toLowerCase();
 
-  function kind() {
-    const all = $("allLevels").checked;
-    if (state.dir === "precedents") return all ? "precedents" : "directPrecedents";
+  function makeNode(area, sheet, parent) {
+    const node = {
+      address: area.address,
+      sheet,
+      local: area.local,
+      cells: area.cells,
+      value: area.value,
+      formula: area.value !== undefined ? area.formula || null : undefined, // undefined = not fetched yet
+      parent,
+      depth: parent ? parent.depth + 1 : -1,
+      children: null,
+      expanded: false,
+      loading: false,
+      loop: false,
+    };
+    for (let p = parent; p; p = p.parent) if (sameAddr(p.address, node.address)) node.loop = true;
+    return node;
+  }
+
+  function childrenFrom(res, parent) {
+    let list = [];
+    for (const g of res.groups) for (const a of g.areas) list.push(Object.assign({ sheet: g.sheet }, a));
+    if (S.dir === "precedents" && res.originFormula) list = C.orderByFormula(list, res.originFormula, parent.sheet);
+    return list.map((a) => makeNode(a, a.sheet, parent));
+  }
+
+  // A node can be opened if it is a formula or a range (or not known yet).
+  function canOpen(n) {
+    if (n.loop) return false;
+    if (n.cells > 1) return true;
+    return n.formula !== null || S.dir === "dependents";
+  }
+
+  function flatten() {
+    const out = [];
+    const walk = (n) => {
+      for (const c of n.children || []) {
+        out.push(c);
+        if (c.expanded) walk(c);
+      }
+    };
+    if (S.root) walk(S.root);
+    S.rows = out;
+  }
+
+  function traceKind(all) {
+    if (S.dir === "precedents") return all ? "precedents" : "directPrecedents";
     return all ? "dependents" : "directDependents";
   }
 
-  /*
-   * opts.address : trace this address instead of the current selection
-   * opts.dir     : switch direction first
-   * opts.keepHistory : drill / back manage the history themselves
-   *
-   * Every cell you analyse is remembered, so "Back" always returns to the
-   * previous one – also when Follow selection switched to a new cell.
-   */
-  async function runTrace(opts) {
-    opts = opts || {};
-    if (opts.dir) setDir(opts.dir);
-    const prev = state.result && state.result.origin;
-    const k = kind();
-    const seq = ++state.seq;
-    status(window.TCTrace.KINDS[k].label + "…");
+  // Starts a fresh tree at `address` (or the selection).
+  async function buildRoot(address, all) {
+    const seq = ++S.seq;
+    status("Tracing…");
     const t0 = Date.now();
     try {
-      const res = await window.TCTrace.trace(k, opts.address);
-      if (seq !== state.seq) return; // a newer trace started meanwhile
-      if (!opts.keepHistory && prev && !sameAddr(prev, res.origin)) remember(prev);
-      state.result = res;
-      renderOrigin();
-      render();
-      const noun = state.dir === "precedents" ? "precedent" : "dependent";
-      status(`${C.formatCount(res.totalAreas)} ${noun}${res.totalAreas === 1 ? "" : "s"} · ${((Date.now() - t0) / 1000).toFixed(2)}s`);
+      const res = await window.TCTrace.trace(traceKind(all), address);
+      if (seq !== S.seq) return;
+      const { sheet, local } = C.splitAddress(res.origin);
+      const root = makeNode({ address: res.origin, local, cells: res.originCells, value: res.originValue, formula: res.originFormula }, sheet, null);
+      root.children = childrenFrom(res, root);
+      root.expanded = true;
+      S.root = root;
+      S.cur = -1;
+      flatten();
+      $("tree").scrollTop = 0;
+      renderHome();
+      renderRows();
+      renderDetail();
+      const noun = S.dir === "precedents" ? "precedent" : "dependent";
+      const n = root.children.length;
+      status(`${C.formatCount(n)} ${all ? "" : "direct "}${noun}${n === 1 ? "" : "s"} · ${((Date.now() - t0) / 1000).toFixed(2)}s`);
     } catch (err) {
-      if (seq !== state.seq) return;
-      state.items = [];
-      $("results").innerHTML = "";
-      const p = document.createElement("p");
-      p.className = "error";
-      p.textContent = errText(err);
-      $("results").appendChild(p);
-      status("Trace failed", true);
+      if (seq !== S.seq) return;
+      status(errText(err), true);
     }
   }
 
-  // Formula with references, numbers etc. coloured (see TCCore.tokenizeFormula).
-  function formulaEl(formula, sheet, cls) {
+  async function expand(node) {
+    if (!canOpen(node) || node.expanded) return;
+    if (!node.children) {
+      node.loading = true;
+      renderRows();
+      try {
+        const res = await window.TCTrace.trace(traceKind(false), node.address);
+        node.value = res.originCells > 1 ? node.value : res.originValue;
+        node.formula = res.originCells > 1 ? node.formula : res.originFormula;
+        node.children = childrenFrom(res, node);
+      } catch (err) {
+        node.children = [];
+        status(errText(err), true);
+      }
+      node.loading = false;
+    }
+    if (!node.children.length) {
+      status(`${node.local} has no ${S.dir}.`);
+      renderRows();
+      renderDetail();
+      return;
+    }
+    node.expanded = true;
+    const keep = S.rows[S.cur];
+    flatten();
+    S.cur = keep ? S.rows.indexOf(keep) : S.cur;
+    renderRows();
+    renderDetail();
+  }
+
+  function collapse(node) {
+    node.expanded = false;
+    const keep = S.rows[S.cur];
+    flatten();
+    S.cur = keep ? S.rows.indexOf(keep) : -1;
+    renderRows();
+  }
+
+  // ---------------------------------------------------------------- cursor
+
+  function curNode() {
+    return S.cur === -1 ? S.root : S.rows[S.cur];
+  }
+
+  // Moves the highlight; with `go`, Excel selects that cell too.
+  function setCursor(i, go) {
+    if (!S.root) return;
+    S.cur = Math.max(-1, Math.min(S.rows.length - 1, i));
+    scrollToCursor();
+    renderHome();
+    renderRows();
+    renderDetail();
+    if (go) {
+      const addr = curNode().address;
+      clearTimeout(S.navTimer);
+      S.navTimer = setTimeout(() => goTo(addr), 50); // holding ↓ doesn't queue jumps
+    }
+  }
+
+  function scrollToCursor() {
+    const tree = $("tree");
+    if (S.cur < 0) {
+      tree.scrollTop = 0;
+      return;
+    }
+    const top = S.cur * ROW_H;
+    if (top < tree.scrollTop) tree.scrollTop = top;
+    else if (top + ROW_H > tree.scrollTop + tree.clientHeight) tree.scrollTop = top + ROW_H - tree.clientHeight;
+  }
+
+  async function goTo(address) {
+    S.expectSel = address;
+    try {
+      await window.TCTrace.goTo(address);
+    } catch (err) {
+      status("Could not go there: " + errText(err), true);
+    }
+    if (!S.paused) focusPane();
+  }
+
+  // The list keeps the keyboard so plain arrows work; retried because Excel
+  // may take focus back right after selecting a cell.
+  function focusPane() {
+    const f = () => {
+      try { window.focus(); } catch (e) { /* ignore */ }
+      $("tree").focus({ preventScroll: true });
+    };
+    f();
+    setTimeout(f, 80);
+    setTimeout(f, 250);
+  }
+
+  // ------------------------------------------------------------- keyboard
+
+  const keys = {
+    down: () => setCursor(S.cur + 1, true),
+    up: () => setCursor(S.cur - 1, true),
+    home: () => setCursor(-1, true),
+    end: () => setCursor(S.rows.length - 1, true),
+    pageDown: () => setCursor(S.cur + 10, true),
+    pageUp: () => setCursor(S.cur - 10, true),
+    right: async () => {
+      if (S.cur === -1) return setCursor(0, true);
+      const n = curNode();
+      if (!n) return;
+      if (!n.expanded) await expand(n);
+      else setCursor(S.cur + 1, true); // already open: step to its first child
+    },
+    // Every ← is one step closer to your cell (closing what you leave behind).
+    left: () => {
+      if (S.cur === -1) return;
+      const n = curNode();
+      const parent = n.parent;
+      if (n.expanded) collapse(n);
+      setCursor(parent === S.root ? -1 : S.rows.indexOf(parent), true);
+    },
+    exit: () => exitTrace(),
+  };
+
+  function onKey(e) {
+    const t = e.target;
+    if (t && t.tagName === "INPUT" && t.type !== "checkbox") return;
+    const map = {
+      ArrowDown: "down", ArrowUp: "up", ArrowRight: "right", Enter: "right", ArrowLeft: "left",
+      Home: "home", End: "end", PageDown: "pageDown", PageUp: "pageUp", Escape: "exit",
+    };
+    const k = map[e.key];
+    if (!k || !S.root) return;
+    e.preventDefault();
+    keys[k]();
+  }
+
+  async function exitTrace() {
+    if (S.root) await goTo(S.root.address);
+    S.paused = true;
+    S.cur = -1;
+    renderHome();
+    renderRows();
+    try { await Office.addin.hide(); } catch (e) { /* not supported */ }
+    status("Stopped. Press Precedents or Dependents to trace again.");
+  }
+
+  // ------------------------------------------------------------- rendering
+
+  function formulaEl(formula, sheet) {
     const el = document.createElement("code");
-    el.className = cls || "fx";
+    el.className = "fx";
     for (const t of C.tokenizeFormula(formula, sheet)) {
       const span = document.createElement("span");
       span.textContent = t.text;
@@ -137,349 +329,198 @@
     return el;
   }
 
-  // Small badges: "↗ Page 2", "⚠ 2025", "external file".
-  function badgesEl(formula, sheet, long) {
-    const n = C.describeFormula(formula, sheet);
-    const wrap = document.createElement("div");
-    wrap.className = long ? "notes" : "badges";
-    const add = (cls, text, title) => {
-      const b = document.createElement("span");
-      b.className = "badge " + cls;
-      b.textContent = text;
-      if (title) b.title = title;
-      wrap.appendChild(b);
-    };
-    for (const sh of n.sheets) add("b-sheet", long ? `Takes data from another sheet: ${sh}` : `↗ ${sh}`, "Pulls from sheet " + sh);
-    if (n.external) add("b-ext", long ? "Takes data from another file" : "↗ other file", "Links to another workbook");
-    if (n.hardcoded.length) {
-      const list = n.hardcoded.slice(0, 4).join(", ");
-      add("b-hard", long ? `Typed-in number inside the formula: ${list}. Consider moving it to an input cell.` : `⚠ ${list}`, "Hard-coded number inside the formula");
-    }
-    return wrap.childElementCount ? wrap : null;
+  function renderHome() {
+    const r = S.root;
+    $("home").classList.toggle("cur", !!r && S.cur === -1);
+    if (!r) return;
+    $("homeAddr").textContent = `${r.sheet} › ${r.local}`;
+    $("homeVal").textContent = r.cells > 1 ? `${C.formatCount(r.cells)} cells` : r.value || "";
+    const fx = $("homeFx");
+    fx.innerHTML = "";
+    if (r.formula) fx.appendChild(formulaEl(r.formula, r.sheet));
   }
 
-  function remember(addr) {
-    const h = state.history;
-    if (!h.length || !sameAddr(h[h.length - 1], addr)) h.push(addr);
-    if (h.length > 30) h.shift();
-  }
-
-  function renderOrigin() {
-    const res = state.result;
-    const { sheet, local } = C.splitAddress(res.origin);
-    $("oSheet").textContent = sheet || "";
-    $("oSheet").classList.toggle("has", !!sheet);
-    $("oCell").textContent = local;
-    $("oValue").textContent = res.originCells > 1 ? `${C.formatCount(res.originCells)} cells` : res.originValue || "";
-    const of = $("oFormula");
-    of.innerHTML = "";
-    if (res.originCells === 1 && res.originFormula) {
-      of.appendChild(formulaEl(res.originFormula, sheet, "fx big"));
-      const b = badgesEl(res.originFormula, sheet, false);
-      if (b) of.appendChild(b);
-    }
-    $("originBtn").title = `Go back to ${res.origin} (Esc)`;
-
-    // Breadcrumb: the cells analysed before this one (last few).
-    const crumbs = $("crumbs");
-    crumbs.innerHTML = "";
-    const SHOW = 3;
-    if (state.history.length > SHOW) {
-      const more = document.createElement("span");
-      more.className = "sep";
-      more.textContent = "… ›";
-      crumbs.appendChild(more);
-    }
-    state.history.forEach((addr, i) => {
-      if (i < state.history.length - SHOW) return;
-      const b = document.createElement("button");
-      b.textContent = addr;
-      b.title = "Go back to " + addr;
-      b.addEventListener("click", () => back(state.history.length - i));
-      const sep = document.createElement("span");
-      sep.className = "sep";
-      sep.textContent = "›";
-      crumbs.append(b, sep);
-    });
-
-    const prevCell = state.history[state.history.length - 1];
-    $("backBtn").hidden = !prevCell;
-    $("backBtn").textContent = prevCell ? `← Back to ${prevCell}` : "";
-    updateReturn();
-
-    const n = res.totalAreas ? ` (${C.formatCount(res.totalAreas)})` : " (0)";
-    $("nPrec").textContent = state.dir === "precedents" ? n : "";
-    $("nDep").textContent = state.dir === "dependents" ? n : "";
-  }
-
-  function matches(area, sheet, q) {
-    if (!q) return true;
-    return (
-      sheet.toLowerCase().includes(q) ||
-      area.local.toLowerCase().includes(q) ||
-      (area.value != null && String(area.value).toLowerCase().includes(q)) ||
-      (area.formula != null && area.formula.toLowerCase().includes(q))
-    );
-  }
-
-  // One list, in formula order (precedents) or sheet order (dependents).
-  // A divider marks every change of sheet; formula rows offer "dig deeper".
-  function render() {
-    const res = state.result;
-    const root = $("results");
-    root.innerHTML = "";
-    state.items = [];
-    state.active = -1;
-    if (!res) return;
-    $("filter").hidden = res.totalAreas <= 15;
-    const q = $("filter").hidden ? "" : $("filter").value.trim().toLowerCase();
-    if (!res.groups.length) {
-      const noun = state.dir === "precedents" ? "precedents" : "dependents";
-      const hint = state.dir === "precedents" ? "It is a typed-in value or has no cell references." : "No formula uses this cell.";
-      root.innerHTML = `<div class="empty"><p><b>No ${noun}.</b></p><p>${hint}</p></div>`;
+  function renderRows() {
+    const tree = $("tree");
+    const rowsEl = $("rows");
+    $("empty").hidden = !!S.root;
+    $("spacer").style.height = S.rows.length * ROW_H + "px";
+    rowsEl.innerHTML = "";
+    if (!S.root) return;
+    if (!S.rows.length) {
+      const noun = S.dir === "precedents" ? "precedents" : "dependents";
+      const why = S.dir === "precedents" ? "It is a typed-in value or has no cell references." : "No formula uses this cell.";
+      rowsEl.innerHTML = `<div class="empty"><b>No ${noun}.</b><br>${why}</div>`;
       return;
     }
-    const originSheet = C.splitAddress(res.origin).sheet;
-    let list = [];
-    for (const g of res.groups) for (const a of g.areas) if (matches(a, g.sheet, q)) list.push(Object.assign({ sheet: g.sheet }, a));
-    if (state.dir === "precedents" && res.originFormula) list = C.orderByFormula(list, res.originFormula, originSheet);
-    if (!list.length) {
-      root.innerHTML = `<div class="empty"><p>Nothing matches the filter.</p></div>`;
-      return;
+    const first = Math.max(0, Math.floor(tree.scrollTop / ROW_H) - PAD_ROWS);
+    const last = Math.min(S.rows.length, first + Math.ceil(tree.clientHeight / ROW_H) + 2 * PAD_ROWS);
+    const missing = [];
+    for (let i = first; i < last; i++) {
+      const n = S.rows[i];
+      rowsEl.appendChild(rowEl(n, i));
+      if (n.cells === 1 && n.value === undefined && !n.fetching) missing.push(n);
     }
-    const ol = document.createElement("div");
-    ol.className = "list";
-    root.appendChild(ol);
-    renderItems(ol, list, 0, originSheet);
+    if (missing.length) queueFetch(missing);
   }
 
-  function renderItems(ol, list, start, originSheet) {
-    const end = Math.min(list.length, start + PAGE);
-    let prevSheet = start > 0 ? list[start - 1].sheet : null;
-    for (let i = start; i < end; i++) {
-      const area = list[i];
-      if (area.sheet !== prevSheet) {
-        const d = document.createElement("div");
-        d.className = "divider" + (area.sheet === originSheet ? " own" : "");
-        d.textContent = area.sheet === originSheet ? `${area.sheet} (this sheet)` : `↗ ${area.sheet}`;
-        ol.appendChild(d);
-        prevSheet = area.sheet;
-      }
-      const it = { area, sheet: area.sheet, el: itemEl(area, area.sheet, i + 1) };
-      const idx = state.items.length;
-      state.items.push(it);
-      it.el.addEventListener("click", () => activate(idx, true));
-      it.el.addEventListener("dblclick", () => drill(idx));
-      ol.appendChild(it.el);
-    }
-    if (end < list.length) {
-      const more = document.createElement("button");
-      more.className = "more";
-      more.textContent = `Show ${C.formatCount(Math.min(PAGE, list.length - end))} more (${C.formatCount(list.length - end)} left)`;
-      more.addEventListener("click", () => {
-        more.remove();
-        renderItems(ol, list, end, originSheet);
-      });
-      ol.appendChild(more);
-    }
-  }
-
-  function itemEl(area, sheet, n) {
+  function rowEl(n, i) {
     const row = document.createElement("div");
-    row.className = "item";
-    row.title = area.address + (area.formula ? "\n" + area.formula : "");
-    const num = document.createElement("span");
-    num.className = "num";
-    num.textContent = n;
+    row.className = "row" + (i === S.cur ? " cur" : "");
+    row.style.top = i * ROW_H + "px";
+    row.style.paddingLeft = 6 + n.depth * 16 + "px";
+    row.title = n.address;
+
+    const tw = document.createElement("span");
+    tw.className = "tw";
+    tw.textContent = n.loading ? "…" : n.loop ? "↻" : n.expanded ? "▾" : canOpen(n) ? "▸" : "·";
+    tw.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setCursor(i, true);
+      if (n.expanded) collapse(n);
+      else expand(n);
+    });
+    row.appendChild(tw);
+
+    // Sheet pill whenever the reference sits on a different sheet than its parent.
+    if (n.sheet !== n.parent.sheet) {
+      const pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = n.sheet;
+      row.appendChild(pill);
+    }
     const addr = document.createElement("span");
     addr.className = "addr";
-    addr.textContent = area.local;
+    addr.textContent = n.local;
+    row.appendChild(addr);
+
+    const icons = document.createElement("span");
+    icons.className = "icons";
+    if (n.formula) {
+      const notes = C.describeFormula(n.formula, n.sheet);
+      icons.innerHTML = '<span class="ic-fx" title="Formula">ƒ</span>';
+      if (notes.hardcoded.length) {
+        const h = document.createElement("span");
+        h.className = "ic-hard";
+        h.title = "Typed-in number inside the formula";
+        h.textContent = notes.hardcoded[0];
+        icons.appendChild(h);
+      }
+      if (notes.external) icons.insertAdjacentHTML("beforeend", '<span class="ic-ext" title="Links to another file">⧉</span>');
+    }
+    if (n.loop) icons.insertAdjacentHTML("beforeend", '<span class="ic-loop" title="Circular reference">circular</span>');
+    row.appendChild(icons);
+
     const val = document.createElement("span");
     val.className = "val";
-    val.textContent = area.cells > 1 ? `${C.formatCount(area.cells)} cells` : area.value !== undefined ? area.value : "";
-    row.append(num, addr, val);
-    if (area.formula) {
-      row.appendChild(formulaEl(area.formula, sheet));
-      const b = badgesEl(area.formula, sheet, false);
-      if (b) row.appendChild(b);
-    }
-    // A formula (or a range) has precedents of its own: offer to dig in.
-    if (area.formula || area.cells > 1) {
-      const dig = document.createElement("div");
-      dig.className = "dig";
-      dig.textContent = `↳ ${area.formula ? "This is a formula" : "This is a range"} · press → to see its ${state.dir}`;
-      dig.addEventListener("click", (e) => { e.stopPropagation(); drill(state.items.findIndex((x) => x.el === row)); });
-      row.appendChild(dig);
-    } else {
-      row.classList.add("leaf");
-    }
+    val.textContent = n.cells > 1 ? `${C.formatCount(n.cells)} cells` : n.value || "";
+    row.appendChild(val);
+
+    row.addEventListener("click", () => setCursor(i, true));
+    row.addEventListener("dblclick", () => (n.expanded ? collapse(n) : expand(n)));
     return row;
   }
 
-  // Highlights row i and (optionally) selects it in Excel.
-  // i = -1 means the traced cell itself (the card at the top).
-  function activate(i, go) {
-    if (!state.result) return;
-    i = Math.max(-1, Math.min(state.items.length - 1, i));
-    if (state.active >= 0 && state.items[state.active]) state.items[state.active].el.classList.remove("active");
-    state.active = i;
-    $("origin").classList.toggle("here", i === -1);
-    updateReturn();
-    renderNow(i >= 0 ? state.items[i] : null);
-    const address = i === -1 ? state.result.origin : state.items[i].area.address;
-    if (i >= 0) {
-      state.items[i].el.classList.add("active");
-      state.items[i].el.scrollIntoView({ block: "nearest" });
-    } else {
-      $("results").scrollTop = 0;
-    }
-    if (go) {
-      // Debounced, so holding ↓ doesn't queue dozens of jumps.
-      clearTimeout(state.navTimer);
-      state.navTimer = setTimeout(() => goTo(address), 60);
-    }
+  // Values for rows scrolled into view, fetched in one batch.
+  function queueFetch(nodes) {
+    for (const n of nodes) n.fetching = true;
+    clearTimeout(S.fetchTimer);
+    S.fetchTimer = setTimeout(async () => {
+      const batch = S.rows.filter((n) => n.fetching && n.value === undefined).slice(0, 300);
+      if (!batch.length) return;
+      try {
+        const out = await window.TCTrace.fetchCells(batch.map((n) => n.address));
+        out.forEach((d, k) => { batch[k].value = d.value; batch[k].formula = d.formula; });
+      } catch (e) {
+        batch.forEach((n) => { n.value = ""; n.formula = null; });
+      }
+      batch.forEach((n) => { n.fetching = false; });
+      renderRows();
+      renderDetail();
+    }, 60);
   }
 
-  // Explains the reference you're on: where it is, what it holds, what to watch.
-  function renderNow(it) {
-    const box = $("now");
-    box.hidden = !it;
-    if (!it) return;
-    const a = it.area;
-    const originLocal = C.splitAddress(state.result.origin).local;
-    const otherSheet = it.sheet !== C.splitAddress(state.result.origin).sheet;
-    $("nowLabel").textContent = `${state.dir === "precedents" ? "Feeds" : "Uses"} ${originLocal} ·`;
-    $("nowAddr").textContent = (otherSheet ? it.sheet + " › " : "") + a.local;
-    $("nowValue").textContent = a.cells > 1 ? `${C.formatCount(a.cells)} cells` : a.value || "";
-    const f = $("nowFormula");
-    const notes = $("nowNotes");
-    f.innerHTML = "";
+  function renderDetail() {
+    const n = curNode();
+    const box = $("detail");
+    box.hidden = !n;
+    if (!n) return;
+
+    // Path from your cell to here: "D10 ← K47 ← Page 2!D5"
+    const chain = [];
+    for (let p = n; p; p = p.parent) chain.unshift(p);
+    const path = $("path");
+    path.innerHTML = "";
+    const span = document.createElement("span");
+    chain.forEach((p, k) => {
+      const label = (k === 0 || p.sheet !== chain[k - 1].sheet ? p.sheet + "!" : "") + p.local;
+      const el = document.createElement(k === chain.length - 1 ? "b" : "span");
+      el.textContent = label;
+      span.appendChild(el);
+      if (k < chain.length - 1) span.appendChild(document.createTextNode(S.dir === "precedents" ? "  ←  " : "  →  "));
+    });
+    path.appendChild(span);
+
+    $("dAddr").textContent = `${n.sheet} › ${n.local}`;
+    $("dVal").textContent = n.cells > 1 ? `${C.formatCount(n.cells)} cells` : n.value || "";
+    const fx = $("dFx");
+    fx.innerHTML = "";
+    if (n.formula) fx.appendChild(formulaEl(n.formula, n.sheet));
+
+    const notes = $("dNotes");
     notes.innerHTML = "";
-    if (a.formula) {
-      f.appendChild(formulaEl(a.formula, it.sheet, "fx big"));
-      const b = badgesEl(a.formula, it.sheet, true);
-      if (b) notes.appendChild(b);
-    } else if (a.cells === 1) {
-      notes.innerHTML = '<div class="notes"><span class="badge b-hard">Typed-in value (an input, no formula)</span></div>';
+    const wrap = document.createElement("div");
+    wrap.className = "notes";
+    const note = (cls, text) => {
+      const d = document.createElement("div");
+      d.className = "note " + cls;
+      d.textContent = text;
+      wrap.appendChild(d);
+    };
+    if (n === S.root) note("n-info", "This is your cell. ↓ to walk through its " + S.dir + ".");
+    if (n.parent && n.sheet !== n.parent.sheet) note("n-sheet", `Different sheet: ${n.sheet}`);
+    if (n.loop) note("n-ext", "Circular reference: this cell is already above in the path.");
+    if (n.formula) {
+      const d = C.describeFormula(n.formula, n.sheet);
+      for (const sh of d.sheets) note("n-sheet", `Pulls data from sheet ${sh}`);
+      if (d.external) note("n-ext", "Pulls data from another file");
+      if (d.hardcoded.length) note("n-hard", `Typed-in number in the formula: ${d.hardcoded.slice(0, 4).join(", ")}`);
+      if (n !== S.root && !n.expanded) note("n-info", `ƒ Formula · → to open its ${S.dir}`);
+    } else if (n.cells > 1) {
+      note("n-info", `Range of ${C.formatCount(n.cells)} cells · → to open its ${S.dir}`);
+    } else if (n.value !== undefined && n !== S.root) {
+      note("n-hard", "Typed-in value (an input)");
     }
-    if (otherSheet) {
-      const n = document.createElement("div");
-      n.className = "notes";
-      n.innerHTML = '<span class="badge b-sheet"></span>';
-      n.firstChild.textContent = `On another sheet: ${it.sheet}`;
-      notes.prepend(n);
-    }
+    if (wrap.childElementCount) notes.appendChild(wrap);
   }
 
-  // Esc: back to your cell, hide the pane, stop following the selection.
-  async function exitTrace() {
-    if (state.result) await goTo(state.result.origin);
-    state.paused = true;
-    try { await Office.addin.hide(); } catch (e) { /* not supported */ }
-    status("Tracing stopped. Press a Trace button to start again.");
-  }
-
-  // "Return to D10" shows while you're looking at one of its references.
-  function updateReturn() {
-    const btn = $("returnBtn");
-    const away = state.result && state.active >= 0;
-    btn.hidden = !away;
-    if (away) btn.textContent = `↩ Return to ${C.splitAddress(state.result.origin).local}`;
-  }
-
-  async function goTo(address) {
-    state.expectSel = address;
-    try {
-      await window.TCTrace.goTo(address);
-    } catch (err) {
-      status("Could not go there: " + errText(err), true);
-    }
-    if (!state.paused) focusPane(); // keep the arrow keys working in the list
-  }
-
-  // Trace mode: the list holds the keyboard so plain ↑ ↓ → ← Esc work.
-  function focusPane() {
-    try { window.focus(); } catch (e) { /* ignore */ }
-    $("results").focus({ preventScroll: true });
-  }
-
-  // Makes row i the new traced cell (→ / Enter / double-click).
-  async function drill(i) {
-    const it = state.items[i];
-    if (!it || !state.result) return;
-    if (sameAddr(it.area.address, state.result.origin) || state.history.some((h) => sameAddr(h, it.area.address))) {
-      status("Circular reference: " + it.area.address + " is already in this path.", true);
-      return;
-    }
-    state.history.push(state.result.origin);
-    await goTo(it.area.address);
-    await runTrace({ address: it.area.address, keepHistory: true });
-    activate(-1, false); // you're now "at" the new cell; ↓ goes to its first reference
-  }
-
-  // Goes back `steps` levels in the drill-down path (← / Backspace / breadcrumb).
-  async function back(steps) {
-    if (!state.history.length) return;
-    const from = state.result && state.result.origin;
-    let target;
-    for (let s = 0; s < (steps || 1) && state.history.length; s++) target = state.history.pop();
-    await goTo(target);
-    await runTrace({ address: target, keepHistory: true });
-    // Back at the parent cell; mark the branch we just came out of.
-    const idx = state.items.findIndex((x) => sameAddr(x.area.address, from));
-    activate(-1, false);
-    if (idx >= 0) {
-      state.items[idx].el.classList.add("visited");
-      state.items[idx].el.scrollIntoView({ block: "nearest" });
-    }
+  // Follow selection: clicking a cell in Excel highlights it if it's in the
+  // tree, otherwise starts a new trace from it.
+  function onSelectionChanged() {
+    if (S.paused) return;
+    clearTimeout(S.autoTimer);
+    S.autoTimer = setTimeout(async () => {
+      try {
+        const addr = await window.TCTrace.getSelectionAddress();
+        if (sameAddr(addr, S.expectSel)) return; // we moved there ourselves
+        S.expectSel = null;
+        if (S.root && sameAddr(addr, S.root.address)) return setCursor(-1, false);
+        const i = S.rows.findIndex((n) => sameAddr(n.address, addr));
+        if (i >= 0) return setCursor(i, false);
+        buildRoot();
+      } catch (e) { /* ignore */ }
+    }, 200);
   }
 
   function setDir(dir) {
-    state.dir = dir;
+    S.dir = dir;
     document.querySelectorAll("[data-dir]").forEach((b) => b.classList.toggle("on", b.dataset.dir === dir));
-  }
-
-  function onKey(e) {
-    const t = e.target;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA") && t.type !== "checkbox") {
-      if (e.key === "ArrowDown" && t.id === "filter") { activate(0, true); $("results").focus(); e.preventDefault(); }
-      return;
-    }
-    switch (e.key) {
-      case "ArrowDown": activate(state.active + 1, true); break;
-      case "ArrowUp": activate(state.active - 1, true); break;
-      case "Home": activate(0, true); break;
-      case "End": activate(state.items.length - 1, true); break;
-      case "PageDown": activate(state.active + 10, true); break;
-      case "PageUp": activate(state.active - 10, true); break;
-      case "ArrowRight":
-      case "Enter": drill(state.active < 0 ? 0 : state.active); break;
-      case "ArrowLeft":
-      case "Backspace": if (state.active >= 0) activate(-1, true); else back(1); break;
-      case "Escape": exitTrace(); break;
-      default: return;
-    }
-    e.preventDefault();
-  }
-
-  async function onSelectionChanged() {
-    if (!$("autoTrace").checked || state.paused) return;
-    clearTimeout(state.autoTimer);
-    state.autoTimer = setTimeout(async () => {
-      try {
-        const addr = await window.TCTrace.getSelectionAddress();
-        if (sameAddr(addr, state.expectSel)) return; // we moved there ourselves
-        if (state.result && sameAddr(addr, state.result.origin)) return;
-        state.expectSel = null;
-        runTrace();
-      } catch (e) { /* ignore */ }
-    }, 200);
   }
 
   // ---------------------------------------------------------------- commands
 
   async function showPane() {
-    state.paused = false;
+    S.paused = false;
     try { await Office.addin.showAsTaskpane(); } catch (e) { /* already visible / unsupported */ }
   }
 
@@ -493,8 +534,8 @@
     if (!Office.actions || !Office.actions.associate) return;
     const traceCmd = (dir, all) => command(async () => {
       await showPane();
-      $("allLevels").checked = all;
-      await runTrace({ dir });
+      setDir(dir);
+      await buildRoot(undefined, all);
       focusPane();
     });
     Office.actions.associate("tracePrecedents", traceCmd("precedents", false));
@@ -504,32 +545,33 @@
     Office.actions.associate("colorCode", command(() => runColor("smart")));
     Office.actions.associate("colorCodeWorkbook", command(() => runColor("workbook")));
     Office.actions.associate("showPane", command(showPane));
-    // Arrow-key navigation that works while you're in the Excel grid.
-    const ensureTrace = async () => { if (!state.result) { await showPane(); await runTrace(); } };
-    Office.actions.associate("nextRef", command(async () => { await ensureTrace(); activate(state.active + 1, true); }));
-    Office.actions.associate("prevRef", command(async () => { await ensureTrace(); activate(state.active - 1, true); }));
-    Office.actions.associate("intoRef", command(async () => { await ensureTrace(); await drill(state.active < 0 ? 0 : state.active); }));
-    // Ctrl+Alt+←: back to your cell → previous cell → stop tracing.
-    Office.actions.associate("backRef", command(async () => {
-      if (!state.result || state.paused) return;
-      if (state.active >= 0) activate(-1, true);
-      else if (state.history.length) await back(1);
-      else await exitTrace();
-    }));
+    // Ctrl+Alt+arrows: the same moves, usable while you're in the Excel grid.
+    const nav = (k) => command(async () => {
+      if (!S.root || S.paused) { await showPane(); await buildRoot(); }
+      await keys[k]();
+    });
+    Office.actions.associate("nextRef", nav("down"));
+    Office.actions.associate("prevRef", nav("up"));
+    Office.actions.associate("intoRef", nav("right"));
+    Office.actions.associate("backRef", nav("left"));
   }
 
   // -------------------------------------------------------------------- boot
 
   function wireUi() {
-    const retrace = () => state.result && runTrace({ address: state.result.origin, keepHistory: true });
-    document.querySelectorAll("[data-dir]").forEach((b) => b.addEventListener("click", () => { setDir(b.dataset.dir); retrace(); }));
-    $("allLevels").addEventListener("change", retrace);
-    $("originBtn").addEventListener("click", () => activate(-1, true));
-    $("returnBtn").addEventListener("click", () => activate(-1, true));
-    $("backBtn").addEventListener("click", () => back(1));
-    let ft;
-    $("filter").addEventListener("input", () => { clearTimeout(ft); ft = setTimeout(render, 120); });
+    document.querySelectorAll("[data-dir]").forEach((b) =>
+      b.addEventListener("click", () => {
+        setDir(b.dataset.dir);
+        buildRoot(S.root && S.root.address);
+        focusPane();
+      })
+    );
+    $("exitBtn").addEventListener("click", exitTrace);
+    $("home").addEventListener("click", () => setCursor(-1, true));
+    $("tree").addEventListener("scroll", () => requestAnimationFrame(renderRows));
+    window.addEventListener("resize", () => renderRows());
     document.addEventListener("keydown", onKey);
+
     $("colorBtn").addEventListener("click", () => runColor("smart"));
     $("colorWbBtn").addEventListener("click", () => {
       if (confirm("Color code every sheet in this workbook? Existing font colors on numbers and formulas (and the background of inputs) will be replaced.")) runColor("workbook");
@@ -576,17 +618,16 @@
   Office.onReady(async (info) => {
     wireUi();
     wireCommands();
+    renderDetail();
     if (info.host !== Office.HostType.Excel) {
       status("Open this add-in inside Excel.", true);
       return;
     }
-    // Load with Excel from now on, so the tab and keyboard shortcuts are live
-    // without opening the pane first.
+    // Load with Excel from now on, so the tab and keyboard shortcuts are live.
     try { await Office.addin.setStartupBehavior(Office.StartupBehavior.load); } catch (e) { /* older hosts */ }
-    // Reopening the pane (ribbon "Trace Pane") resumes tracing after Esc.
     try {
       Office.addin.onVisibilityModeChanged((args) => {
-        if (args.visibilityMode === "Taskpane") state.paused = false;
+        if (args.visibilityMode === "Taskpane") S.paused = false;
       });
     } catch (e) { /* older hosts */ }
     try {
@@ -594,9 +635,8 @@
         context.workbook.onSelectionChanged.add(onSelectionChanged);
         await context.sync();
       });
-    } catch (e) { /* auto-trace unavailable */ }
-    const ok = window.TCTrace.supported("dependents");
-    status(ok ? "Ready." : "Ready. Some trace modes need a newer Excel (Microsoft 365).");
-    runTrace(); // trace whatever cell is selected right now
+    } catch (e) { /* follow-selection unavailable */ }
+    await buildRoot();
+    focusPane();
   });
 })();

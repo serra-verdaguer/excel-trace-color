@@ -8,62 +8,54 @@
   <link rel="stylesheet" href="taskpane.css" />
 </head>
 <body>
-  <!-- The cell being traced -->
-  <section class="origin" id="origin">
-    <nav class="crumbs" id="crumbs" aria-label="Trace path"></nav>
-    <div class="origin-row">
-      <button class="origin-addr" id="originBtn" title="Go back to this cell (Esc)">
-        <span class="o-sheet" id="oSheet">Select a cell</span><span class="o-cell" id="oCell"></span>
-      </button>
-      <span class="o-value" id="oValue"></span>
+  <!-- Mode -->
+  <header class="top">
+    <div class="seg" role="tablist">
+      <button role="tab" data-dir="precedents" class="on" title="Cells your cell uses">Precedents</button>
+      <button role="tab" data-dir="dependents" title="Cells that use your cell">Dependents</button>
     </div>
-    <code class="o-formula" id="oFormula"></code>
-    <div class="nav-btns">
-      <button id="returnBtn" class="primary" hidden title="Go back to the cell you are analysing (Ctrl+Alt+← or Esc)"></button>
-      <button id="backBtn" hidden title="Analyse the previous cell again (Ctrl+Alt+← twice)"></button>
+    <button id="exitBtn" class="ghost" title="Back to your cell and close (Esc)">✕</button>
+  </header>
+
+  <!-- Your cell: always visible, the "home" of the tree -->
+  <section class="home" id="home" title="Your cell (Home key)">
+    <div class="home-label">YOUR CELL</div>
+    <div class="home-row">
+      <span class="home-addr" id="homeAddr">Select a cell</span>
+      <span class="home-val" id="homeVal"></span>
     </div>
+    <div id="homeFx"></div>
   </section>
 
-  <!-- The reference you are looking at right now -->
-  <section class="now" id="now" hidden>
-    <div class="now-head">
-      <span class="now-label" id="nowLabel">Now on</span>
-      <span class="now-addr" id="nowAddr"></span>
-      <span class="now-value" id="nowValue"></span>
-    </div>
-    <div id="nowFormula"></div>
-    <div id="nowNotes"></div>
-  </section>
-
-  <!-- Direction -->
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-dir="precedents" class="on" title="Cells this cell uses">← Precedents <span class="n" id="nPrec"></span></button>
-    <button role="tab" data-dir="dependents" title="Cells that use this cell">Dependents → <span class="n" id="nDep"></span></button>
-  </nav>
-  <div class="opts">
-    <label title="Show every level, not just the cells referenced directly"><input type="checkbox" id="allLevels" /> All levels</label>
-    <label title="Trace automatically whenever you click another cell"><input type="checkbox" id="autoTrace" checked /> Follow selection</label>
-    <input id="filter" type="search" placeholder="Filter…" hidden />
-  </div>
-
-  <!-- Results, grouped by sheet -->
-  <main id="results" tabindex="0" aria-live="polite">
-    <div class="empty">
-      <p><b>Click any cell</b> in your model.</p>
-      <p>Its precedents appear here, grouped by sheet.</p>
-    </div>
+  <!-- Tree of precedents / dependents (only visible rows are drawn) -->
+  <main id="tree" tabindex="0" aria-label="References">
+    <div id="spacer"></div>
+    <div id="rows"></div>
+    <div class="empty" id="empty">Select a cell, then press <b>Precedents</b> on the ribbon.</div>
   </main>
-  <footer class="keys" id="keys">
+
+  <!-- What the highlighted row is -->
+  <section class="detail" id="detail">
+    <div class="path" id="path"></div>
+    <div class="d-row">
+      <span class="d-addr" id="dAddr"></span>
+      <span class="d-val" id="dVal"></span>
+    </div>
+    <div id="dFx"></div>
+    <div id="dNotes"></div>
+  </section>
+
+  <footer class="keys">
     <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
-    <span><kbd>→</kbd> dig deeper</span>
-    <span><kbd>←</kbd> back</span>
-    <span><kbd>Esc</kbd> exit to my cell</span>
-    <span class="muted">If the arrows move Excel instead, click this list once (or use Ctrl+Alt + arrows).</span>
+    <span><kbd>→</kbd> open</span>
+    <span><kbd>←</kbd> step back</span>
+    <span><kbd>Home</kbd> your cell</span>
+    <span><kbd>Esc</kbd> exit</span>
+    <span>From the sheet: hold <kbd>Ctrl</kbd><kbd>Alt</kbd> + arrows</span>
   </footer>
 
-  <!-- Color coding (tucked away) -->
   <details class="color">
-    <summary>Color code</summary>
+    <summary>Color code settings</summary>
     <div class="color-head">
       <button id="colorBtn" class="primary" title="Selection if more than one cell is selected, otherwise the whole sheet">Color sheet / selection</button>
       <button id="colorWbBtn">Whole workbook</button>
@@ -79,7 +71,7 @@
     </div>
   </details>
 
-  <footer id="status" class="status muted">Loading…</footer>
+  <footer id="status" class="status"></footer>
 
   <script src="lib/core.js"></script>
   <script src="lib/colorcode.js"></script>

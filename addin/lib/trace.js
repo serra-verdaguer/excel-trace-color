@@ -136,5 +136,23 @@
     });
   }
 
-  root.TCTrace = { KINDS, trace, goTo, selectAll, supported, getSelectionAddress };
+  // Value + formula for many cells in one round trip (used to fill in rows as
+  // they scroll into view, so huge lists never load everything up front).
+  async function fetchCells(addresses) {
+    return Excel.run(async (context) => {
+      const cells = addresses.map((a) => {
+        const p = C.splitAddress(a);
+        const r = context.workbook.worksheets.getItem(p.sheet).getRange(p.local).getCell(0, 0);
+        r.load("formulas,text");
+        return r;
+      });
+      await context.sync();
+      return cells.map((r) => {
+        const f = r.formulas[0][0];
+        return { value: r.text[0][0], formula: typeof f === "string" && f[0] === "=" ? f : null };
+      });
+    });
+  }
+
+  root.TCTrace = { KINDS, trace, goTo, selectAll, supported, getSelectionAddress, fetchCells };
 })(typeof self !== "undefined" ? self : this);

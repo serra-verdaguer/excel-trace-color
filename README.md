@@ -54,29 +54,28 @@ Updates are automatic. The add-in's code is served from GitHub Pages, so everyon
 On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
 
 ### Trace pane
-- **Click any cell.** The top of the pane shows that cell (sheet, address, value and formula), and its precedents appear below, grouped by sheet.
-- **Move with the keyboard, straight from the Excel grid** (no need to click the pane):
 
-  | Keys | Action |
-  |---|---|
-  | `Ctrl+Alt+↓` / `Ctrl+Alt+↑` | Next / previous precedent. Excel jumps to it. `↑` past the first one returns to your cell |
-  | `Ctrl+Alt+→` | Trace into the current one (it becomes the cell at the top) |
-  | `Ctrl+Alt+←` | **Return to the cell you're analysing.** Press again to go back to the cell you analysed before |
+<img src="docs/taskpane.png" width="300" alt="Trace pane">
 
-  Inside the pane, the plain arrow keys do the same. **`Esc`** takes you back to your cell, closes the pane and stops tracing, so Excel behaves normally again (pressing `Ctrl+Alt+←` on your cell with nothing to go back to does the same). On Mac use `⌘ ⌥` + arrows.
-- **Formula order.** Precedents are listed in the order they appear in the formula (`=+K47*'Page 2'!D5+…` lists K47 first, then Page 2!D5…). A dashed divider marks each change of sheet, and every precedent that is itself a formula says *"↳ This is a formula · press → to see its precedents"*.
-- **Every step is explained.** A green *"Feeds D10 · K47"* card shows the cell you're on, with its formula colored:
-  - **green**: references to another sheet (plus *"Takes data from another sheet: Page 2"*)
-  - **blue on yellow**: numbers typed into a formula, like `2025` (*"Consider moving it to an input cell"*)
-  - **red**: links to another file
+Select a cell and press **Precedents** (or **Dependents**). The pane opens with the keyboard ready:
 
-  Rows in the list carry the same hints as small badges (`↗ Page 2`, `⚠ 2025`).
-- **Sheet chips** (e.g. `Model · 3`, `Inputs · 1`) show which sheets the references come from. Click one to jump there.
-- **Never lose your place.** Every cell you analyse is remembered, even when *Follow selection* switches to a new cell because you clicked elsewhere. Use **↩ Return to D10** (while you're on a precedent) and **← Back to …** (the previous cell) at the top of the pane.
-- The trail at the top (e.g. `Model!D10 › Model!C1`) shows how you got there. Click any step to go back to it.
-- **Precedents / Dependents** tabs switch direction. **All levels** shows everything upstream or downstream.
-- **Follow selection** (on by default) re-traces whenever you click a new cell in Excel.
-- A filter box appears automatically when there are more than 15 results.
+- **YOUR CELL** stays pinned at the top: address, value and formula.
+- Its precedents are listed below **in formula order**. Each one that is itself a formula has a **▸** and opens *underneath* it, like a folder, so you always see how you got there.
+- **One green row = where Excel is.** Moving the highlight selects that cell in Excel.
+- A green **sheet pill** (e.g. `Page 2`) marks every reference on a different sheet. **ƒ** marks a formula, and a yellow number (e.g. `2025`) marks a typed-in number inside a formula.
+- The box at the bottom explains the highlighted cell: the path from your cell (`Model!D10 ← K47 ← Page 2!D5`), its colored formula, and notes such as *"Pulls data from sheet Page 2"* or *"Typed-in value (an input)"*.
+
+| Key | Action |
+|---|---|
+| `↓` `↑` | Next / previous cell. Excel follows |
+| `→` or `Enter` | Open that formula's precedents, or step into them if already open |
+| `←` | One step back toward your cell |
+| `Home` | Your cell |
+| `Esc` | Back to your cell, close the pane, normal Excel again |
+
+From the spreadsheet itself, hold `Ctrl+Alt` with the arrows (Mac: `⌘⌥`). Clicking a cell in Excel highlights it if it's in the tree, or starts a new trace from it.
+
+**Big models:** the list only draws the rows on screen, and values are fetched as you scroll. A cell with 5,000 precedents opens in well under a second.
 
 ## Built for huge workbooks
 
