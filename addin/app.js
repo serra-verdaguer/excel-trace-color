@@ -120,6 +120,14 @@
     return list.map((a) => makeNode(a, a.sheet, parent));
   }
 
+  // "8 cells", or "whole columns" / "whole rows" for A:B / 3:5 style references.
+  function sizeLabel(n) {
+    if (/^\$?[A-Z]{1,3}:\$?[A-Z]{1,3}$/i.test(n.local)) return n.local.split(":")[0] === n.local.split(":")[1] ? "whole column" : "whole columns";
+    if (/^\$?\d+:\$?\d+$/.test(n.local)) return n.local.split(":")[0] === n.local.split(":")[1] ? "whole row" : "whole rows";
+    return `${C.formatCount(n.cells)} cells`;
+  }
+  const isWhole = (n) => /^\$?([A-Z]{1,3}|\d+):\$?([A-Z]{1,3}|\d+)$/i.test(n.local);
+
   // A node can be opened if it is a formula or a range (or not known yet).
   function canOpen(n) {
     if (n.loop) return false;
@@ -145,7 +153,40 @@
   }
 
   // Starts a fresh tree at `address` (or the selection).
+  // Starts a fresh tree. `all` opens it level by level (each level indented
+  // under the cell it feeds) instead of Excel's flat all-levels list, which
+  // glues different levels together into one block.
   async function buildRoot(address, all) {
+    await buildDirect(address);
+    if (all && S.root) await openAllLevels();
+  }
+
+  async function openAllLevels() {
+    const MAX_OPEN = 60; // Excel round trips; the rest stay openable with →
+    const MAX_DEPTH = 6;
+    let opened = 0;
+    let queue = S.root.children.slice();
+    status("Opening all levels…");
+    while (queue.length && opened < MAX_OPEN) {
+      const next = [];
+      for (const n of queue) {
+        if (opened >= MAX_OPEN) break;
+        if (n.depth >= MAX_DEPTH || isWhole(n) || n.formula === null && n.cells === 1 || n.loop) continue;
+        await expand(n, true);
+        opened++;
+        if (n.children) next.push(...n.children);
+      }
+      queue = next;
+    }
+    flatten();
+    renderRows();
+    renderDetail();
+    const total = S.rows.length;
+    status(`${C.formatCount(total)} ${S.dir} shown, level by level${queue.length ? " (→ opens deeper levels)" : ""}.`);
+  }
+
+  async function buildDirect(address) {
+    const all = false;
     const seq = ++S.seq;
     status("Tracing…");
     const t0 = Date.now();
@@ -172,7 +213,7 @@
     }
   }
 
-  async function expand(node) {
+  async function expand(node, quiet) {
     if (!canOpen(node) || node.expanded) return;
     if (!node.children) {
       node.loading = true;
@@ -189,7 +230,7 @@
       node.loading = false;
     }
     if (!node.children.length) {
-      status(`${node.local} has no ${S.dir}.`);
+      if (!quiet) status(`${node.local} has no ${S.dir}.`);
       renderRows();
       renderDetail();
       return;
@@ -413,7 +454,7 @@
 
     const val = document.createElement("span");
     val.className = "val";
-    val.textContent = n.cells > 1 ? `${C.formatCount(n.cells)} cells` : n.value || "";
+    val.textContent = n.cells > 1 ? sizeLabel(n) : n.value || "";
     row.appendChild(val);
 
     row.addEventListener("click", () => setCursor(i, true));
@@ -462,7 +503,7 @@
     path.appendChild(span);
 
     $("dAddr").textContent = `${n.sheet} › ${n.local}`;
-    $("dVal").textContent = n.cells > 1 ? `${C.formatCount(n.cells)} cells` : n.value || "";
+    $("dVal").textContent = n.cells > 1 ? sizeLabel(n) : n.value || "";
     const fx = $("dFx");
     fx.innerHTML = "";
     if (n.formula) fx.appendChild(formulaEl(n.formula, n.sheet));
@@ -487,7 +528,7 @@
       if (d.hardcoded.length) note("n-hard", `Typed-in number in the formula: ${d.hardcoded.slice(0, 4).join(", ")}`);
       if (n !== S.root && !n.expanded) note("n-info", `ƒ Formula · → to open its ${S.dir}`);
     } else if (n.cells > 1) {
-      note("n-info", `Range of ${C.formatCount(n.cells)} cells · → to open its ${S.dir}`);
+      note("n-info", isWhole(n) ? `Whole-column/row reference (e.g. a lookup table) · → to open its ${S.dir}` : `Range of ${C.formatCount(n.cells)} cells · → to open its ${S.dir}`);
     } else if (n.value !== undefined && n !== S.root) {
       note("n-hard", "Typed-in value (an input)");
     }

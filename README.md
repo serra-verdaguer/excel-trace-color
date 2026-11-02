@@ -75,6 +75,8 @@ Select a cell and press **Precedents** (or **Dependents**). The pane opens with 
 
 From the spreadsheet itself, hold `Ctrl+Alt` with the arrows (Mac: `⌘⌥`). Clicking a cell in Excel highlights it if it's in the tree, or starts a new trace from it.
 
+**All Precedents / All Dependents** open the same tree level by level (up to 6 levels, 60 formulas; `→` opens anything deeper). Each level stays indented under the cell it feeds. Whole-column references such as lookup tables (`'2022'!A:B`) show as *whole columns* and aren't opened automatically.
+
 **Big models:** the list only draws the rows on screen, and values are fetched as you scroll. A cell with 5,000 precedents opens in well under a second.
 
 ## Built for huge workbooks
