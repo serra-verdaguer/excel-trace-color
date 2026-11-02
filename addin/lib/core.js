@@ -289,6 +289,53 @@
     return out;
   }
 
+
+  // "B$5:$C9" -> { r0, c0, r1, c1 }; whole columns/rows span the sheet. null if not a range.
+  function a1ToRect(local) {
+    const s = String(local).replace(/\$/g, "").toUpperCase();
+    let m = /^([A-Z]{1,3})(\d+)(?::([A-Z]{1,3})(\d+))?$/.exec(s);
+    if (m) {
+      const r = { r0: +m[2] - 1, c0: lettersToCol(m[1]), r1: +(m[4] || m[2]) - 1, c1: lettersToCol(m[3] || m[1]) };
+      return { r0: Math.min(r.r0, r.r1), c0: Math.min(r.c0, r.c1), r1: Math.max(r.r0, r.r1), c1: Math.max(r.c0, r.c1) };
+    }
+    m = /^([A-Z]{1,3}):([A-Z]{1,3})$/.exec(s);
+    if (m) return { r0: 0, c0: lettersToCol(m[1]), r1: 1048575, c1: lettersToCol(m[2]) };
+    m = /^(\d+):(\d+)$/.exec(s);
+    if (m) return { r0: +m[1] - 1, c0: 0, r1: +m[2] - 1, c1: 16383 };
+    return null;
+  }
+
+  function intersects(a, b) {
+    return a && b && a.r0 <= b.r1 && b.r0 <= a.r1 && a.c0 <= b.c1 && b.c0 <= a.c1;
+  }
+
+  // Sorts precedents into the order they are written in the formula, so ↓
+  // walks the formula left to right. items: [{ sheet, local }] (any extra
+  // fields are kept). Anything the formula doesn't name directly (e.g. via a
+  // defined name) goes last, in its original order.
+  function orderByFormula(items, formula, ownSheet) {
+    const refs = [];
+    for (const t of tokenizeFormula(formula, ownSheet)) {
+      if (t.kind !== "ref" && t.kind !== "xref") continue;
+      const p = splitAddress(t.text);
+      const sheet = p.sheet && !p.sheet.includes(":") ? p.sheet : p.sheet ? null : ownSheet;
+      refs.push({ sheet, rect: a1ToRect(p.local) });
+    }
+    const pos = (it) => {
+      const rect = a1ToRect(it.local);
+      for (let i = 0; i < refs.length; i++) {
+        const r = refs[i];
+        if (r.sheet !== null && String(r.sheet).toLowerCase() !== String(it.sheet).toLowerCase()) continue;
+        if (r.sheet === null || intersects(r.rect, rect)) return i;
+      }
+      return Infinity;
+    };
+    return items
+      .map((it, i) => ({ it, i, p: pos(it) }))
+      .sort((a, b) => a.p - b.p || a.i - b.i)
+      .map((x) => x.it);
+  }
+
   // Plain-language notes about a formula, for the "what is this cell" line.
   //   { sheets: ["Page 2"], external: true/false, hardcoded: ["2025"] }
   // 0 and 1 aren't reported as hard-codes (=A1*1, IF(x,0,…) are normal).
@@ -334,6 +381,8 @@
     planChunks,
     tokenizeFormula,
     describeFormula,
+    a1ToRect,
+    orderByFormula,
     formatCount,
     isHexColor,
   };

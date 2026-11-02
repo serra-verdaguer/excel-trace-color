@@ -64,6 +64,7 @@ On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
   | `Ctrl+Alt+←` | **Return to the cell you're analysing.** Press again to go back to the cell you analysed before |
 
   Inside the pane, the plain arrow keys do the same. **`Esc`** takes you back to your cell, closes the pane and stops tracing, so Excel behaves normally again (pressing `Ctrl+Alt+←` on your cell with nothing to go back to does the same). On Mac use `⌘ ⌥` + arrows.
+- **Formula order.** Precedents are listed in the order they appear in the formula (`=+K47*'Page 2'!D5+…` lists K47 first, then Page 2!D5…). A dashed divider marks each change of sheet, and every precedent that is itself a formula says *"↳ This is a formula · press → to see its precedents"*.
 - **Every step is explained.** A green *"Feeds D10 · K47"* card shows the cell you're on, with its formula colored:
   - **green**: references to another sheet (plus *"Takes data from another sheet: Page 2"*)
   - **blue on yellow**: numbers typed into a formula, like `2025` (*"Consider moving it to an input cell"*)

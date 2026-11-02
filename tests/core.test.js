@@ -132,3 +132,17 @@ test("describeFormula explains a step in plain terms", () => {
   assert.deepEqual(C.describeFormula("=IF(A1>0,A1*1,0)", "Model"), { sheets: [], external: false, hardcoded: [] });
   assert.equal(C.describeFormula("=[Budget.xlsx]P!A1", "Model").external, true);
 });
+
+test("orderByFormula follows the formula left to right", () => {
+  const items = [
+    { sheet: "Model", local: "C1:C3" },
+    { sheet: "Inputs", local: "B2" },
+    { sheet: "Model", local: "K47" },
+    { sheet: "Model", local: "Z99" }, // not named in the formula
+    { sheet: "Page 2", local: "D5" },
+  ];
+  const out = C.orderByFormula(items, "=+K47*'Page 2'!$D$5+SUM(C1:C3)+Inputs!B2", "Model").map((x) => x.sheet + "!" + x.local);
+  assert.deepEqual(out, ["Model!K47", "Page 2!D5", "Model!C1:C3", "Inputs!B2", "Model!Z99"]);
+  assert.deepEqual(C.a1ToRect("$B$2:A1"), { r0: 0, c0: 0, r1: 1, c1: 1 });
+  assert.deepEqual(C.a1ToRect("C:C"), { r0: 0, c0: 2, r1: 1048575, c1: 2 });
+});

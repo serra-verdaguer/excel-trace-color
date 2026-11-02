@@ -222,6 +222,8 @@
     );
   }
 
+  // One list, in formula order (precedents) or sheet order (dependents).
+  // A divider marks every change of sheet; formula rows offer "dig deeper".
   function render() {
     const res = state.result;
     const root = $("results");
@@ -233,101 +235,83 @@
     const q = $("filter").hidden ? "" : $("filter").value.trim().toLowerCase();
     if (!res.groups.length) {
       const noun = state.dir === "precedents" ? "precedents" : "dependents";
-      const hint = state.dir === "precedents" ? "It is a hard-coded value or has no cell references." : "No formula uses this cell.";
+      const hint = state.dir === "precedents" ? "It is a typed-in value or has no cell references." : "No formula uses this cell.";
       root.innerHTML = `<div class="empty"><p><b>No ${noun}.</b></p><p>${hint}</p></div>`;
       return;
     }
     const originSheet = C.splitAddress(res.origin).sheet;
-    // One chip per sheet: an overview of where the references live, and a jump link.
-    const chips = document.createElement("div");
-    chips.className = "chips";
-    root.appendChild(chips);
-    for (const g of res.groups) {
-      const areas = g.areas.filter((a) => matches(a, g.sheet, q));
-      if (!areas.length) continue;
-      const h = document.createElement("div");
-      h.className = "sheet-h";
-      const chip = document.createElement("button");
-      chip.className = "chip" + (g.sheet === originSheet ? " own" : "");
-      chip.textContent = `${g.sheet} · ${C.formatCount(areas.length)}`;
-      chip.title = `Jump to the ${g.sheet} references`;
-      chip.addEventListener("click", () => {
-        const idx = state.items.findIndex((x) => x.sheet === g.sheet);
-        if (idx >= 0) activate(idx, true);
-      });
-      chips.appendChild(chip);
-      const name = document.createElement("span");
-      name.textContent = g.sheet;
-      h.appendChild(name);
-      if (g.sheet === originSheet) {
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = "this sheet";
-        h.appendChild(tag);
-      }
-      const n = document.createElement("span");
-      n.className = "n";
-      n.textContent = C.formatCount(areas.length);
-      h.appendChild(n);
-      root.appendChild(h);
-      renderItems(root, h, g.sheet, areas, 0);
+    let list = [];
+    for (const g of res.groups) for (const a of g.areas) if (matches(a, g.sheet, q)) list.push(Object.assign({ sheet: g.sheet }, a));
+    if (state.dir === "precedents" && res.originFormula) list = C.orderByFormula(list, res.originFormula, originSheet);
+    if (!list.length) {
+      root.innerHTML = `<div class="empty"><p>Nothing matches the filter.</p></div>`;
+      return;
     }
-    if (!state.items.length) root.innerHTML = `<div class="empty"><p>Nothing matches the filter.</p></div>`;
+    const ol = document.createElement("div");
+    ol.className = "list";
+    root.appendChild(ol);
+    renderItems(ol, list, 0, originSheet);
   }
 
-  // Appends rows after `anchor`; keeps state.items in on-screen order.
-  function renderItems(root, anchor, sheet, areas, start) {
-    const end = Math.min(areas.length, start + PAGE);
-    let after = anchor;
-    const newItems = [];
+  function renderItems(ol, list, start, originSheet) {
+    const end = Math.min(list.length, start + PAGE);
+    let prevSheet = start > 0 ? list[start - 1].sheet : null;
     for (let i = start; i < end; i++) {
-      const it = { area: areas[i], sheet, el: itemEl(areas[i], sheet) };
-      after.after(it.el);
-      after = it.el;
-      newItems.push(it);
+      const area = list[i];
+      if (area.sheet !== prevSheet) {
+        const d = document.createElement("div");
+        d.className = "divider" + (area.sheet === originSheet ? " own" : "");
+        d.textContent = area.sheet === originSheet ? `${area.sheet} (this sheet)` : `↗ ${area.sheet}`;
+        ol.appendChild(d);
+        prevSheet = area.sheet;
+      }
+      const it = { area, sheet: area.sheet, el: itemEl(area, area.sheet, i + 1) };
+      const idx = state.items.length;
+      state.items.push(it);
+      it.el.addEventListener("click", () => activate(idx, true));
+      it.el.addEventListener("dblclick", () => drill(idx));
+      ol.appendChild(it.el);
     }
-    // Insert into the flat list right after the anchor's last item.
-    const prev = state.items.findIndex((x) => x.el === anchor);
-    const pos = prev >= 0 ? prev + 1 : itemsBefore(anchor);
-    state.items.splice(pos, 0, ...newItems);
-    newItems.forEach((it) => it.el.addEventListener("click", () => activate(state.items.indexOf(it), true)));
-    newItems.forEach((it) => it.el.addEventListener("dblclick", () => drill(state.items.indexOf(it))));
-    if (end < areas.length) {
+    if (end < list.length) {
       const more = document.createElement("button");
       more.className = "more";
-      more.textContent = `Show ${C.formatCount(Math.min(PAGE, areas.length - end))} more (${C.formatCount(areas.length - end)} left)`;
+      more.textContent = `Show ${C.formatCount(Math.min(PAGE, list.length - end))} more (${C.formatCount(list.length - end)} left)`;
       more.addEventListener("click", () => {
-        const last = after;
         more.remove();
-        renderItems(root, last, sheet, areas, end);
+        renderItems(ol, list, end, originSheet);
       });
-      after.after(more);
+      ol.appendChild(more);
     }
   }
 
-  function itemsBefore(node) {
-    let count = 0;
-    for (const it of state.items) {
-      if (it.el.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) count++;
-    }
-    return count;
-  }
-
-  function itemEl(area, sheet) {
+  function itemEl(area, sheet, n) {
     const row = document.createElement("div");
     row.className = "item";
-    row.title = area.address + (area.formula ? "\n" + area.formula : "") + "\nDouble-click or → to trace into it";
+    row.title = area.address + (area.formula ? "\n" + area.formula : "");
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = n;
     const addr = document.createElement("span");
     addr.className = "addr";
     addr.textContent = area.local;
     const val = document.createElement("span");
     val.className = "val";
     val.textContent = area.cells > 1 ? `${C.formatCount(area.cells)} cells` : area.value !== undefined ? area.value : "";
-    row.append(addr, val);
+    row.append(num, addr, val);
     if (area.formula) {
       row.appendChild(formulaEl(area.formula, sheet));
       const b = badgesEl(area.formula, sheet, false);
       if (b) row.appendChild(b);
+    }
+    // A formula (or a range) has precedents of its own: offer to dig in.
+    if (area.formula || area.cells > 1) {
+      const dig = document.createElement("div");
+      dig.className = "dig";
+      dig.textContent = `↳ ${area.formula ? "This is a formula" : "This is a range"} · press → to see its ${state.dir}`;
+      dig.addEventListener("click", (e) => { e.stopPropagation(); drill(state.items.findIndex((x) => x.el === row)); });
+      row.appendChild(dig);
+    } else {
+      row.classList.add("leaf");
     }
     return row;
   }
@@ -410,6 +394,13 @@
     } catch (err) {
       status("Could not go there: " + errText(err), true);
     }
+    if (!state.paused) focusPane(); // keep the arrow keys working in the list
+  }
+
+  // Trace mode: the list holds the keyboard so plain ↑ ↓ → ← Esc work.
+  function focusPane() {
+    try { window.focus(); } catch (e) { /* ignore */ }
+    $("results").focus({ preventScroll: true });
   }
 
   // Makes row i the new traced cell (→ / Enter / double-click).
@@ -504,7 +495,7 @@
       await showPane();
       $("allLevels").checked = all;
       await runTrace({ dir });
-      $("results").focus();
+      focusPane();
     });
     Office.actions.associate("tracePrecedents", traceCmd("precedents", false));
     Office.actions.associate("traceAllPrecedents", traceCmd("precedents", true));
