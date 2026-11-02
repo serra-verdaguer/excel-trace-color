@@ -15,35 +15,27 @@ Trace **precedents and dependents** in very large workbooks, and **color-code a 
 
 ---
 
-## Install (one click)
+## Install (nothing to run, IT-compliant)
 
-**This is not VBA.** It's a modern Office add-in written in JavaScript. All the heavy work (tracing, finding every number and formula) runs inside Excel's own calculation engine. That's why it can handle sheets VBA macros choke on.
+The add-in is a single settings file, [`manifest.xml`](https://github.com/serra-verdaguer/excel-trace-color/blob/main/manifest.xml). There's no program, macro or script to execute. Pick one route:
 
-### Windows (Microsoft 365): one file
-1. Download **[Install-Trace-Color.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Install-Trace-Color.cmd)** (click **Download raw file**, ↓) and double-click it.
-   - If you see *"Windows protected your PC"*, click **More info → Run anyway**. Then click **Yes** when Windows asks for permission.
-2. Close Excel completely and reopen it.
-3. **Once:** `Home` → `Add-ins` → `More Add-ins` → **`SHARED FOLDER`** → *Trace & Color* → **Add**.
+### A. Team network drive: stays on the ribbon, no admin rights
+1. Download [`manifest.xml`](https://github.com/serra-verdaguer/excel-trace-color/blob/main/manifest.xml) (↓ *Download raw file*) and put it in a folder on a shared network drive, e.g. `S:\Finance\Tools\TraceColor`.
+2. Find the folder's network path (starting with `\\`). In File Explorer → *This PC*, the drive shows as e.g. *Finance (\\server01\data) (S:)*, so the folder is `\\server01\data\Finance\Tools\TraceColor`.
+3. Excel → `File` → `Options` → `Trust Center` → `Trust Center Settings` → **`Trusted Add-in Catalogs`**. Paste the path in *Catalog Url* → **Add catalog** → tick **Show in Menu** → OK.
+4. Restart Excel → `Home` → `Add-ins` → `More Add-ins` → **`SHARED FOLDER`** → *Trace & Color* → **Add**.
 
-The **Trace & Color** tab, and a group on the **Home** tab, are then there every time you open Excel.
+Teammates only need steps 3 and 4.
 
-On PCs without admin rights, the same file automatically falls back to a basic install. The installer then tells you where to find the add-in (*My Add-ins → Developer Add-ins*). Excel may forget a basic install after a restart, so on company laptops the permanent route is IT deployment (see below).
+### B. Quick try: Upload My Add-in
+Download `manifest.xml` → Excel → `Home` → `Add-ins` → `More Add-ins` → `My Add-ins` → **`Upload My Add-in`**. Excel may forget an add-in uploaded this way after a restart.
 
-To remove it, run [Uninstall-Windows.cmd](https://github.com/serra-verdaguer/excel-trace-color/blob/main/install/Uninstall-Windows.cmd).
-
-### Mac (Microsoft 365)
-Open **Terminal**, paste this line and press Enter. Quit Excel (⌘Q), reopen it, then **first time only** go to `Insert` → `Add-ins` → small arrow next to **My Add-ins** → under **Developer Add-ins** click *Trace & Color*:
-```bash
-curl -fsSL https://raw.githubusercontent.com/serra-verdaguer/excel-trace-color/main/install/install-mac.sh | bash
-```
-
-### Excel on the web, or as an alternative on any platform
-Download [`manifest.xml`](https://github.com/serra-verdaguer/excel-trace-color/blob/main/manifest.xml) (↓ button), then in Excel go to `Home` → `Add-ins` → `More Add-ins` → `My Add-ins` → **`Upload My Add-in`**.
-
-### Whole company, zero clicks per person
+### C. Whole company: IT deploys it (zero clicks per person)
 An IT admin uploads `manifest.xml` once in **Microsoft 365 admin center → Settings → Integrated apps → Upload custom apps**. The tab then appears for everyone automatically.
 
-Updates are automatic. The add-in's code is served from GitHub Pages, so when this repo changes, everyone gets the new version the next time Excel starts.
+*For IT:* this is a standard Office web add-in (JavaScript, no VBA, .exe or COM). It asks only for the **ReadWriteDocument** permission (the open workbook) and sends no data anywhere.
+
+Updates are automatic. The add-in's code is served from GitHub Pages, so everyone gets the new version the next time Excel starts.
 
 ## Use
 
