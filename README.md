@@ -55,16 +55,16 @@ On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
 
 ### Trace pane
 - **Click any cell.** The top of the pane shows that cell (sheet, address, value and formula), and its precedents appear below, grouped by sheet.
-- **Move with the keyboard.** Click once inside the pane, then:
+- **Move with the keyboard, straight from the Excel grid** (no need to click the pane):
 
-  | Key | Action |
+  | Keys | Action |
   |---|---|
-  | `↑` `↓` | Move through the list. Excel jumps to each cell as you go |
-  | `→` or `Enter` | Trace into that cell (it becomes the new cell at the top) |
-  | `←` or `Backspace` | Go back one level |
-  | `Esc` | Jump back to the cell you started from |
-  | `Home` `End` `PgUp` `PgDn` | Jump through long lists |
+  | `Ctrl+Alt+↓` / `Ctrl+Alt+↑` | Next / previous precedent. Excel jumps to it. `↑` past the first one returns to your cell |
+  | `Ctrl+Alt+→` | Trace into the current one (it becomes the cell at the top) |
+  | `Ctrl+Alt+←` | Back to the cell at the top. Press again to go up one level |
 
+  Inside the pane, the plain arrow keys do the same, plus `Esc` for the start cell. On Mac use `⌘ ⌥` + arrows.
+- **Sheet chips** (e.g. `Model · 3`, `Inputs · 1`) show which sheets the references come from. Click one to jump there.
 - The trail at the top (e.g. `Model!D10 › Model!C1`) shows how you got there. Click any step to go back to it.
 - **Precedents / Dependents** tabs switch direction. **All levels** shows everything upstream or downstream.
 - **Follow selection** (on by default) re-traces whenever you click a new cell in Excel.

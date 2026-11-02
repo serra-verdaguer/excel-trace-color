@@ -1,14 +1,102 @@
 {
   "actions": [
-    { "id": "tracePrecedents", "type": "ExecuteFunction", "name": "Trace precedents" },
-    { "id": "traceDependents", "type": "ExecuteFunction", "name": "Trace dependents" },
-    { "id": "colorCode", "type": "ExecuteFunction", "name": "Color code sheet or selection" },
-    { "id": "showPane", "type": "ExecuteFunction", "name": "Show trace pane" }
+    {
+      "id": "tracePrecedents",
+      "type": "ExecuteFunction",
+      "name": "Trace precedents"
+    },
+    {
+      "id": "traceDependents",
+      "type": "ExecuteFunction",
+      "name": "Trace dependents"
+    },
+    {
+      "id": "colorCode",
+      "type": "ExecuteFunction",
+      "name": "Color code sheet or selection"
+    },
+    {
+      "id": "showPane",
+      "type": "ExecuteFunction",
+      "name": "Show trace pane"
+    },
+    {
+      "id": "nextRef",
+      "type": "ExecuteFunction",
+      "name": "Go to next precedent/dependent"
+    },
+    {
+      "id": "prevRef",
+      "type": "ExecuteFunction",
+      "name": "Go to previous precedent/dependent"
+    },
+    {
+      "id": "intoRef",
+      "type": "ExecuteFunction",
+      "name": "Trace into the current precedent/dependent"
+    },
+    {
+      "id": "backRef",
+      "type": "ExecuteFunction",
+      "name": "Go back to the traced cell"
+    }
   ],
   "shortcuts": [
-    { "action": "tracePrecedents", "key": { "default": "Ctrl+Alt+Shift+P", "mac": "Command+Option+Shift+P" } },
-    { "action": "traceDependents", "key": { "default": "Ctrl+Alt+Shift+D", "mac": "Command+Option+Shift+D" } },
-    { "action": "colorCode", "key": { "default": "Ctrl+Alt+Shift+C", "mac": "Command+Option+Shift+C" } },
-    { "action": "showPane", "key": { "default": "Ctrl+Alt+Shift+T", "mac": "Command+Option+Shift+T" } }
+    {
+      "action": "tracePrecedents",
+      "key": {
+        "default": "Ctrl+Alt+Shift+P",
+        "mac": "Command+Option+Shift+P"
+      }
+    },
+    {
+      "action": "traceDependents",
+      "key": {
+        "default": "Ctrl+Alt+Shift+D",
+        "mac": "Command+Option+Shift+D"
+      }
+    },
+    {
+      "action": "colorCode",
+      "key": {
+        "default": "Ctrl+Alt+Shift+C",
+        "mac": "Command+Option+Shift+C"
+      }
+    },
+    {
+      "action": "showPane",
+      "key": {
+        "default": "Ctrl+Alt+Shift+T",
+        "mac": "Command+Option+Shift+T"
+      }
+    },
+    {
+      "action": "nextRef",
+      "key": {
+        "default": "Ctrl+Alt+Down",
+        "mac": "Command+Option+Down"
+      }
+    },
+    {
+      "action": "prevRef",
+      "key": {
+        "default": "Ctrl+Alt+Up",
+        "mac": "Command+Option+Up"
+      }
+    },
+    {
+      "action": "intoRef",
+      "key": {
+        "default": "Ctrl+Alt+Right",
+        "mac": "Command+Option+Right"
+      }
+    },
+    {
+      "action": "backRef",
+      "key": {
+        "default": "Ctrl+Alt+Left",
+        "mac": "Command+Option+Left"
+      }
+    }
   ]
 }

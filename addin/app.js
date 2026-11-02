@@ -173,11 +173,24 @@
       return;
     }
     const originSheet = C.splitAddress(res.origin).sheet;
+    // One chip per sheet: an overview of where the references live, and a jump link.
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    root.appendChild(chips);
     for (const g of res.groups) {
       const areas = g.areas.filter((a) => matches(a, g.sheet, q));
       if (!areas.length) continue;
       const h = document.createElement("div");
       h.className = "sheet-h";
+      const chip = document.createElement("button");
+      chip.className = "chip" + (g.sheet === originSheet ? " own" : "");
+      chip.textContent = `${g.sheet} · ${C.formatCount(areas.length)}`;
+      chip.title = `Jump to the ${g.sheet} references`;
+      chip.addEventListener("click", () => {
+        const idx = state.items.findIndex((x) => x.sheet === g.sheet);
+        if (idx >= 0) activate(idx, true);
+      });
+      chips.appendChild(chip);
       const name = document.createElement("span");
       name.textContent = g.sheet;
       h.appendChild(name);
@@ -256,18 +269,25 @@
   }
 
   // Highlights row i and (optionally) selects it in Excel.
+  // Highlights row i and (optionally) selects it in Excel.
+  // i = -1 means the traced cell itself (the card at the top).
   function activate(i, go) {
-    if (!state.items.length) return;
-    i = Math.max(0, Math.min(state.items.length - 1, i));
+    if (!state.result) return;
+    i = Math.max(-1, Math.min(state.items.length - 1, i));
     if (state.active >= 0 && state.items[state.active]) state.items[state.active].el.classList.remove("active");
     state.active = i;
-    const it = state.items[i];
-    it.el.classList.add("active");
-    it.el.scrollIntoView({ block: "nearest" });
+    $("origin").classList.toggle("here", i === -1);
+    const address = i === -1 ? state.result.origin : state.items[i].area.address;
+    if (i >= 0) {
+      state.items[i].el.classList.add("active");
+      state.items[i].el.scrollIntoView({ block: "nearest" });
+    } else {
+      $("results").scrollTop = 0;
+    }
     if (go) {
       // Debounced, so holding ↓ doesn't queue dozens of jumps.
       clearTimeout(state.navTimer);
-      state.navTimer = setTimeout(() => goTo(it.area.address), 60);
+      state.navTimer = setTimeout(() => goTo(address), 60);
     }
   }
 
@@ -291,7 +311,7 @@
     state.history.push(state.result.origin);
     await goTo(it.area.address);
     await runTrace({ address: it.area.address, keepHistory: true });
-    activate(0, false);
+    activate(-1, false); // you're now "at" the new cell; ↓ goes to its first reference
   }
 
   // Goes back `steps` levels in the drill-down path (← / Backspace / breadcrumb).
@@ -302,8 +322,13 @@
     for (let s = 0; s < (steps || 1) && state.history.length; s++) target = state.history.pop();
     await goTo(target);
     await runTrace({ address: target, keepHistory: true });
+    // Back at the parent cell; mark the branch we just came out of.
     const idx = state.items.findIndex((x) => sameAddr(x.area.address, from));
-    activate(idx >= 0 ? idx : 0, false);
+    activate(-1, false);
+    if (idx >= 0) {
+      state.items[idx].el.classList.add("visited");
+      state.items[idx].el.scrollIntoView({ block: "nearest" });
+    }
   }
 
   function setDir(dir) {
@@ -328,7 +353,7 @@
       case "Enter": drill(state.active < 0 ? 0 : state.active); break;
       case "ArrowLeft":
       case "Backspace": back(1); break;
-      case "Escape": if (state.result) goTo(state.result.origin); break;
+      case "Escape": activate(-1, true); break;
       default: return;
     }
     e.preventDefault();
@@ -375,6 +400,15 @@
     Office.actions.associate("colorCode", command(() => runColor("smart")));
     Office.actions.associate("colorCodeWorkbook", command(() => runColor("workbook")));
     Office.actions.associate("showPane", command(showPane));
+    // Arrow-key navigation that works while you're in the Excel grid.
+    const ensureTrace = async () => { if (!state.result) { await showPane(); await runTrace(); } };
+    Office.actions.associate("nextRef", command(async () => { await ensureTrace(); activate(state.active + 1, true); }));
+    Office.actions.associate("prevRef", command(async () => { await ensureTrace(); activate(state.active - 1, true); }));
+    Office.actions.associate("intoRef", command(async () => { await ensureTrace(); await drill(state.active < 0 ? 0 : state.active); }));
+    Office.actions.associate("backRef", command(async () => {
+      if (state.history.length && state.active === -1) await back(1);
+      else activate(-1, true);
+    }));
   }
 
   // -------------------------------------------------------------------- boot
