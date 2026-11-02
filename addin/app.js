@@ -88,12 +88,15 @@
   /*
    * opts.address : trace this address instead of the current selection
    * opts.dir     : switch direction first
-   * opts.keepHistory : keep the drill-down path (used by drill / back)
+   * opts.keepHistory : drill / back manage the history themselves
+   *
+   * Every cell you analyse is remembered, so "Back" always returns to the
+   * previous one – also when Follow selection switched to a new cell.
    */
   async function runTrace(opts) {
     opts = opts || {};
     if (opts.dir) setDir(opts.dir);
-    if (!opts.keepHistory) state.history = [];
+    const prev = state.result && state.result.origin;
     const k = kind();
     const seq = ++state.seq;
     status(window.TCTrace.KINDS[k].label + "…");
@@ -101,6 +104,7 @@
     try {
       const res = await window.TCTrace.trace(k, opts.address);
       if (seq !== state.seq) return; // a newer trace started meanwhile
+      if (!opts.keepHistory && prev && !sameAddr(prev, res.origin)) remember(prev);
       state.result = res;
       renderOrigin();
       render();
@@ -118,6 +122,12 @@
     }
   }
 
+  function remember(addr) {
+    const h = state.history;
+    if (!h.length || !sameAddr(h[h.length - 1], addr)) h.push(addr);
+    if (h.length > 30) h.shift();
+  }
+
   function renderOrigin() {
     const res = state.result;
     const { sheet, local } = C.splitAddress(res.origin);
@@ -128,10 +138,18 @@
     $("oFormula").textContent = res.originCells > 1 ? "" : res.originFormula || "";
     $("originBtn").title = `Go back to ${res.origin} (Esc)`;
 
-    // Breadcrumb: where we drilled in from.
+    // Breadcrumb: the cells analysed before this one (last few).
     const crumbs = $("crumbs");
     crumbs.innerHTML = "";
+    const SHOW = 3;
+    if (state.history.length > SHOW) {
+      const more = document.createElement("span");
+      more.className = "sep";
+      more.textContent = "… ›";
+      crumbs.appendChild(more);
+    }
     state.history.forEach((addr, i) => {
+      if (i < state.history.length - SHOW) return;
       const b = document.createElement("button");
       b.textContent = addr;
       b.title = "Go back to " + addr;
@@ -141,6 +159,11 @@
       sep.textContent = "›";
       crumbs.append(b, sep);
     });
+
+    const prevCell = state.history[state.history.length - 1];
+    $("backBtn").hidden = !prevCell;
+    $("backBtn").textContent = prevCell ? `← Back to ${prevCell}` : "";
+    updateReturn();
 
     const n = res.totalAreas ? ` (${C.formatCount(res.totalAreas)})` : " (0)";
     $("nPrec").textContent = state.dir === "precedents" ? n : "";
@@ -277,6 +300,7 @@
     if (state.active >= 0 && state.items[state.active]) state.items[state.active].el.classList.remove("active");
     state.active = i;
     $("origin").classList.toggle("here", i === -1);
+    updateReturn();
     const address = i === -1 ? state.result.origin : state.items[i].area.address;
     if (i >= 0) {
       state.items[i].el.classList.add("active");
@@ -289,6 +313,14 @@
       clearTimeout(state.navTimer);
       state.navTimer = setTimeout(() => goTo(address), 60);
     }
+  }
+
+  // "Return to D10" shows while you're looking at one of its references.
+  function updateReturn() {
+    const btn = $("returnBtn");
+    const away = state.result && state.active >= 0;
+    btn.hidden = !away;
+    if (away) btn.textContent = `↩ Return to ${C.splitAddress(state.result.origin).local}`;
   }
 
   async function goTo(address) {
@@ -352,7 +384,7 @@
       case "ArrowRight":
       case "Enter": drill(state.active < 0 ? 0 : state.active); break;
       case "ArrowLeft":
-      case "Backspace": back(1); break;
+      case "Backspace": if (state.active >= 0) activate(-1, true); else back(1); break;
       case "Escape": activate(-1, true); break;
       default: return;
     }
@@ -417,7 +449,9 @@
     const retrace = () => state.result && runTrace({ address: state.result.origin, keepHistory: true });
     document.querySelectorAll("[data-dir]").forEach((b) => b.addEventListener("click", () => { setDir(b.dataset.dir); retrace(); }));
     $("allLevels").addEventListener("change", retrace);
-    $("originBtn").addEventListener("click", () => state.result && goTo(state.result.origin));
+    $("originBtn").addEventListener("click", () => activate(-1, true));
+    $("returnBtn").addEventListener("click", () => activate(-1, true));
+    $("backBtn").addEventListener("click", () => back(1));
     let ft;
     $("filter").addEventListener("input", () => { clearTimeout(ft); ft = setTimeout(render, 120); });
     document.addEventListener("keydown", onKey);

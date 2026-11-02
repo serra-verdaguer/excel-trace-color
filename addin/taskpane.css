@@ -83,6 +83,9 @@ kbd {
   text-overflow: ellipsis;
 }
 .o-formula:empty { display: none; }
+.nav-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.nav-btns:not(:has(button:not([hidden]))) { display: none; }
+.nav-btns button { padding: 3px 10px; font-size: 12px; }
 
 /* ---- tabs ---- */
 .tabs { display: flex; border-bottom: 1px solid var(--line); }

@@ -61,10 +61,11 @@ On Mac the shortcuts use `⌘ ⌥ ⇧` instead of `Ctrl Alt Shift`.
   |---|---|
   | `Ctrl+Alt+↓` / `Ctrl+Alt+↑` | Next / previous precedent. Excel jumps to it. `↑` past the first one returns to your cell |
   | `Ctrl+Alt+→` | Trace into the current one (it becomes the cell at the top) |
-  | `Ctrl+Alt+←` | Back to the cell at the top. Press again to go up one level |
+  | `Ctrl+Alt+←` | **Return to the cell you're analysing.** Press again to go back to the cell you analysed before |
 
   Inside the pane, the plain arrow keys do the same, plus `Esc` for the start cell. On Mac use `⌘ ⌥` + arrows.
 - **Sheet chips** (e.g. `Model · 3`, `Inputs · 1`) show which sheets the references come from. Click one to jump there.
+- **Never lose your place.** Every cell you analyse is remembered, even when *Follow selection* switches to a new cell because you clicked elsewhere. Use **↩ Return to D10** (while you're on a precedent) and **← Back to …** (the previous cell) at the top of the pane.
 - The trail at the top (e.g. `Model!D10 › Model!C1`) shows how you got there. Click any step to go back to it.
 - **Precedents / Dependents** tabs switch direction. **All levels** shows everything upstream or downstream.
 - **Follow selection** (on by default) re-traces whenever you click a new cell in Excel.
