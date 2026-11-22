@@ -155,3 +155,12 @@ kbd {
 .legend input[type="color"] { width: 22px; height: 18px; padding: 0; border: 1px solid var(--line); background: none; }
 .status { padding: 3px 12px 5px; font-size: 11px; color: var(--muted); min-height: 20px; }
 .status.err { color: var(--err); }
+
+/* ---- number formats ---- */
+.nf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 6px; }
+.nf-grid button { font: 600 12px Consolas, "Cascadia Mono", monospace; padding: 5px 4px; }
+.nf-grid small { font-weight: 400; color: var(--muted); }
+.nf-opts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; align-items: center; }
+.nf-opts label { display: flex; align-items: center; gap: 4px; }
+.nf-opts select { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; }
+.nf-hint { margin: 6px 0 2px; color: var(--muted); font-size: 11px; }

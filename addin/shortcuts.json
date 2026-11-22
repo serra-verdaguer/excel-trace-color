@@ -39,6 +39,31 @@
       "id": "backRef",
       "type": "ExecuteFunction",
       "name": "Go back to the traced cell"
+    },
+    {
+      "id": "fmtNumber",
+      "type": "ExecuteFunction",
+      "name": "Number format 1,234"
+    },
+    {
+      "id": "fmtPercent",
+      "type": "ExecuteFunction",
+      "name": "Percent format 12.34%"
+    },
+    {
+      "id": "fmtMultiple",
+      "type": "ExecuteFunction",
+      "name": "Multiple format 8.50x"
+    },
+    {
+      "id": "fmtCurrency",
+      "type": "ExecuteFunction",
+      "name": "Currency format"
+    },
+    {
+      "id": "fmtYear",
+      "type": "ExecuteFunction",
+      "name": "Year format 2025 / A / E"
     }
   ],
   "shortcuts": [
@@ -96,6 +121,41 @@
       "key": {
         "default": "Ctrl+Alt+Left",
         "mac": "Command+Option+Left"
+      }
+    },
+    {
+      "action": "fmtNumber",
+      "key": {
+        "default": "Ctrl+Alt+Shift+1",
+        "mac": "Command+Option+Shift+1"
+      }
+    },
+    {
+      "action": "fmtPercent",
+      "key": {
+        "default": "Ctrl+Alt+Shift+2",
+        "mac": "Command+Option+Shift+2"
+      }
+    },
+    {
+      "action": "fmtMultiple",
+      "key": {
+        "default": "Ctrl+Alt+Shift+3",
+        "mac": "Command+Option+Shift+3"
+      }
+    },
+    {
+      "action": "fmtCurrency",
+      "key": {
+        "default": "Ctrl+Alt+Shift+4",
+        "mac": "Command+Option+Shift+4"
+      }
+    },
+    {
+      "action": "fmtYear",
+      "key": {
+        "default": "Ctrl+Alt+Shift+5",
+        "mac": "Command+Option+Shift+5"
       }
     }
   ]

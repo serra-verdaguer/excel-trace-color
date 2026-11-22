@@ -79,6 +79,27 @@ From the spreadsheet itself, hold `Ctrl+Alt` with the arrows (Mac: `⌘⌥`). Cl
 
 **Big models:** the list only draws the rows on screen, and values are fetched as you scroll. A cell with 5,000 precedents opens in well under a second.
 
+## Number formats (one click, built for PE models)
+
+The **Numbers** group (on the Trace & Color tab and on Home) formats the selection in one click. **Click the same button again for the next variant**, so you never open *Format Cells → Custom*.
+
+| Button | 1st click | Clicking again | Shortcut (Mac: ⌘⌥⇧) |
+|---|---|---|---|
+| **Number** | `1,234` · `(1,234)` · `–` | `1,234.0` → `1,234.00` | `Ctrl+Alt+Shift+1` |
+| **Percent** | `12.34%` · `(12.34%)` | `12.3%` → `12%` | `Ctrl+Alt+Shift+2` |
+| **Multiple** | `8.50x` | `8.5x` | `Ctrl+Alt+Shift+3` |
+| **Currency ▾** | `€1,234` · `(€1,234)` | `€1,234.00` | `Ctrl+Alt+Shift+4` |
+| ↳ Thousands (k) | `€1,235k` (value unchanged) | 1 decimal | |
+| ↳ Millions (m) | `€1.2m` (value unchanged) | 2 → 0 decimals | |
+| ↳ Use € / $ / £ | switches the currency and applies it | | |
+| **Year A/E** | `2025` (no thousands separator) | `2025A` → `2025E` → `FY2025` | `Ctrl+Alt+Shift+5` |
+
+- Negatives are in brackets, zeros show as `–`, and positives get padding so they line up with bracketed negatives.
+- Works on any selection, from one cell to whole columns or several areas at once. Each area is formatted in a single step.
+- Year headers that are real dates get `yyyy`, `yyyy"A"`… so they show the year instead of a date serial.
+- In the task pane under **Number formats**: pick the currency (€, $, £, CHF, SEK, NOK, DKK), put the symbol after the number (`1.234 €`), or switch off zeros as `–`.
+- Excel shows the formats with your own separators (`1.234,5` in Spain, `1,234.5` in the UK/US).
+
 ## Built for huge workbooks
 
 - **Tracing uses Excel's own dependency engine** (`getDirectPrecedents`, `getPrecedents`, `getDirectDependents`, `getDependents`). Results come back as *rectangles*, so `=SUM(A1:A1000000)` returns one row, not a million. Lists render 200 rows at a time, with a *Show more* button.

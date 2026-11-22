@@ -16,6 +16,7 @@
   "use strict";
   const C = window.TCCore;
   const COLOR_KEY = "tc.colors";
+  const NUMFMT_KEY = "tc.numfmt";
   const ROW_H = 28; // keep in sync with --row-h
   const PAD_ROWS = 8; // rows drawn above/below the viewport
 
@@ -88,6 +89,44 @@
     } finally {
       busy(false);
     }
+  }
+
+  // ---------------------------------------------------------- number formats
+
+  function loadNumOpts() {
+    try {
+      return Object.assign({}, C.NUMFMT_DEFAULTS, JSON.parse(localStorage.getItem(NUMFMT_KEY) || "{}"));
+    } catch (e) {
+      return Object.assign({}, C.NUMFMT_DEFAULTS);
+    }
+  }
+
+  function saveNumOpts(o) {
+    try { localStorage.setItem(NUMFMT_KEY, JSON.stringify(o)); } catch (e) { /* storage blocked */ }
+  }
+
+  function syncNumInputs() {
+    const o = loadNumOpts();
+    $("nfCurrency").value = o.currency;
+    $("nfAfter").checked = !!o.currencyAfter;
+    $("nfZero").checked = !!o.zeroDash;
+  }
+
+  async function runNumFmt(family) {
+    try {
+      const fmt = await window.TCNumFmt.applyNumberFormat(family, loadNumOpts());
+      status("Number format: " + fmt);
+    } catch (err) {
+      status("Could not apply the format: " + errText(err), true);
+    }
+  }
+
+  async function setCurrency(sym) {
+    const o = loadNumOpts();
+    o.currency = sym;
+    saveNumOpts(o);
+    syncNumInputs();
+    await runNumFmt("currency");
   }
 
   // ------------------------------------------------------------- tree model
@@ -586,6 +625,13 @@
     Office.actions.associate("colorCode", command(() => runColor("smart")));
     Office.actions.associate("colorCodeWorkbook", command(() => runColor("workbook")));
     Office.actions.associate("showPane", command(showPane));
+    // Number formats (each click on the same button cycles the variant).
+    for (const [action, family] of [["fmtNumber", "number"], ["fmtPercent", "percent"], ["fmtMultiple", "multiple"], ["fmtCurrency", "currency"], ["fmtCurrencyK", "currencyK"], ["fmtCurrencyM", "currencyM"], ["fmtYear", "year"]]) {
+      Office.actions.associate(action, command(() => runNumFmt(family)));
+    }
+    Office.actions.associate("fmtUseEUR", command(() => setCurrency("€")));
+    Office.actions.associate("fmtUseUSD", command(() => setCurrency("$")));
+    Office.actions.associate("fmtUseGBP", command(() => setCurrency("£")));
     // Ctrl+Alt+arrows: the same moves, usable while you're in the Excel grid.
     const nav = (k) => command(async () => {
       if (!S.root || S.paused) { await showPane(); await buildRoot(); }
@@ -654,6 +700,11 @@
     });
     $("resetColors").addEventListener("click", () => { saveColors(C.DEFAULT_COLORS); syncColorInputs(); });
     syncColorInputs();
+
+    document.querySelectorAll("[data-nf]").forEach((b) => b.addEventListener("click", () => runNumFmt(b.dataset.nf)));
+    const saveNf = () => saveNumOpts({ currency: $("nfCurrency").value.trim() || "€", currencyAfter: $("nfAfter").checked, zeroDash: $("nfZero").checked });
+    for (const id of ["nfCurrency", "nfAfter", "nfZero"]) $(id).addEventListener("change", saveNf);
+    syncNumInputs();
   }
 
   Office.onReady(async (info) => {

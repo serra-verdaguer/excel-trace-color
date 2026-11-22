@@ -5,7 +5,7 @@
            xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
            xsi:type="TaskPaneApp">
   <Id>226f2a76-31d8-4adc-95c6-053ff2729ee0</Id>
-  <Version>1.1.0.0</Version>
+  <Version>1.2.0.0</Version>
   <ProviderName>serra-verdaguer</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Trace &amp; Color"/>
@@ -74,6 +74,77 @@
                   </Action>
                 </Control>
               </Group>
+              <Group id="TC.HomeNumGroup">
+                <Label resid="Nf.Group.Label"/>
+                <Icon><bt:Image size="16" resid="Nf.num.16"/><bt:Image size="32" resid="Nf.num.32"/><bt:Image size="80" resid="Nf.num.80"/></Icon>
+                <Control xsi:type="Button" id="TC.HomeNfNumber">
+                  <Label resid="Nf.Number.Label"/>
+                  <Supertip><Title resid="Nf.Number.Title"/><Description resid="Nf.Number.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.num.16"/><bt:Image size="32" resid="Nf.num.32"/><bt:Image size="80" resid="Nf.num.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtNumber</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.HomeNfPercent">
+                  <Label resid="Nf.Percent.Label"/>
+                  <Supertip><Title resid="Nf.Percent.Title"/><Description resid="Nf.Percent.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.pct.16"/><bt:Image size="32" resid="Nf.pct.32"/><bt:Image size="80" resid="Nf.pct.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtPercent</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.HomeNfMultiple">
+                  <Label resid="Nf.Multiple.Label"/>
+                  <Supertip><Title resid="Nf.Multiple.Title"/><Description resid="Nf.Multiple.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.mult.16"/><bt:Image size="32" resid="Nf.mult.32"/><bt:Image size="80" resid="Nf.mult.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtMultiple</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Menu" id="TC.HomeNfCurrencyMenu">
+                  <Label resid="Nf.Menu.Label"/>
+                  <Supertip><Title resid="Nf.Menu.Label"/><Description resid="Nf.Menu.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.cur.16"/><bt:Image size="32" resid="Nf.cur.32"/><bt:Image size="80" resid="Nf.cur.80"/></Icon>
+                  <Items>
+                    <Item id="TC.HomeNfCur">
+                      <Label resid="Nf.Cur.Label"/>
+                      <Supertip><Title resid="Nf.Cur.Title"/><Description resid="Nf.Cur.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.cur.16"/><bt:Image size="32" resid="Nf.cur.32"/><bt:Image size="80" resid="Nf.cur.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtCurrency</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.HomeNfCurK">
+                      <Label resid="Nf.CurK.Label"/>
+                      <Supertip><Title resid="Nf.CurK.Title"/><Description resid="Nf.CurK.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.curk.16"/><bt:Image size="32" resid="Nf.curk.32"/><bt:Image size="80" resid="Nf.curk.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtCurrencyK</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.HomeNfCurM">
+                      <Label resid="Nf.CurM.Label"/>
+                      <Supertip><Title resid="Nf.CurM.Title"/><Description resid="Nf.CurM.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.curm.16"/><bt:Image size="32" resid="Nf.curm.32"/><bt:Image size="80" resid="Nf.curm.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtCurrencyM</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.HomeNfUseEUR">
+                      <Label resid="Nf.UseEUR.Label"/>
+                      <Supertip><Title resid="Nf.UseEUR.Title"/><Description resid="Nf.UseEUR.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.cur.16"/><bt:Image size="32" resid="Nf.cur.32"/><bt:Image size="80" resid="Nf.cur.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtUseEUR</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.HomeNfUseUSD">
+                      <Label resid="Nf.UseUSD.Label"/>
+                      <Supertip><Title resid="Nf.UseUSD.Title"/><Description resid="Nf.UseUSD.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.usd.16"/><bt:Image size="32" resid="Nf.usd.32"/><bt:Image size="80" resid="Nf.usd.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtUseUSD</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.HomeNfUseGBP">
+                      <Label resid="Nf.UseGBP.Label"/>
+                      <Supertip><Title resid="Nf.UseGBP.Title"/><Description resid="Nf.UseGBP.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.gbp.16"/><bt:Image size="32" resid="Nf.gbp.32"/><bt:Image size="80" resid="Nf.gbp.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtUseGBP</FunctionName></Action>
+                    </Item>
+                  </Items>
+                </Control>
+                <Control xsi:type="Button" id="TC.HomeNfYear">
+                  <Label resid="Nf.Year.Label"/>
+                  <Supertip><Title resid="Nf.Year.Title"/><Description resid="Nf.Year.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.year.16"/><bt:Image size="32" resid="Nf.year.32"/><bt:Image size="80" resid="Nf.year.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtYear</FunctionName></Action>
+                </Control>
+              </Group>
             </OfficeTab>
             <CustomTab id="TC.Tab">
               <Group id="TC.TraceGroup">
@@ -129,6 +200,77 @@
                   <Action xsi:type="ExecuteFunction"><FunctionName>colorCodeWorkbook</FunctionName></Action>
                 </Control>
               </Group>
+              <Group id="TC.NumGroup">
+                <Label resid="Nf.Group.Label"/>
+                <Icon><bt:Image size="16" resid="Nf.num.16"/><bt:Image size="32" resid="Nf.num.32"/><bt:Image size="80" resid="Nf.num.80"/></Icon>
+                <Control xsi:type="Button" id="TC.NfNumber">
+                  <Label resid="Nf.Number.Label"/>
+                  <Supertip><Title resid="Nf.Number.Title"/><Description resid="Nf.Number.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.num.16"/><bt:Image size="32" resid="Nf.num.32"/><bt:Image size="80" resid="Nf.num.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtNumber</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.NfPercent">
+                  <Label resid="Nf.Percent.Label"/>
+                  <Supertip><Title resid="Nf.Percent.Title"/><Description resid="Nf.Percent.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.pct.16"/><bt:Image size="32" resid="Nf.pct.32"/><bt:Image size="80" resid="Nf.pct.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtPercent</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="TC.NfMultiple">
+                  <Label resid="Nf.Multiple.Label"/>
+                  <Supertip><Title resid="Nf.Multiple.Title"/><Description resid="Nf.Multiple.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.mult.16"/><bt:Image size="32" resid="Nf.mult.32"/><bt:Image size="80" resid="Nf.mult.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtMultiple</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Menu" id="TC.NfCurrencyMenu">
+                  <Label resid="Nf.Menu.Label"/>
+                  <Supertip><Title resid="Nf.Menu.Label"/><Description resid="Nf.Menu.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.cur.16"/><bt:Image size="32" resid="Nf.cur.32"/><bt:Image size="80" resid="Nf.cur.80"/></Icon>
+                  <Items>
+                    <Item id="TC.NfCur">
+                      <Label resid="Nf.Cur.Label"/>
+                      <Supertip><Title resid="Nf.Cur.Title"/><Description resid="Nf.Cur.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.cur.16"/><bt:Image size="32" resid="Nf.cur.32"/><bt:Image size="80" resid="Nf.cur.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtCurrency</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.NfCurK">
+                      <Label resid="Nf.CurK.Label"/>
+                      <Supertip><Title resid="Nf.CurK.Title"/><Description resid="Nf.CurK.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.curk.16"/><bt:Image size="32" resid="Nf.curk.32"/><bt:Image size="80" resid="Nf.curk.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtCurrencyK</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.NfCurM">
+                      <Label resid="Nf.CurM.Label"/>
+                      <Supertip><Title resid="Nf.CurM.Title"/><Description resid="Nf.CurM.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.curm.16"/><bt:Image size="32" resid="Nf.curm.32"/><bt:Image size="80" resid="Nf.curm.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtCurrencyM</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.NfUseEUR">
+                      <Label resid="Nf.UseEUR.Label"/>
+                      <Supertip><Title resid="Nf.UseEUR.Title"/><Description resid="Nf.UseEUR.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.cur.16"/><bt:Image size="32" resid="Nf.cur.32"/><bt:Image size="80" resid="Nf.cur.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtUseEUR</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.NfUseUSD">
+                      <Label resid="Nf.UseUSD.Label"/>
+                      <Supertip><Title resid="Nf.UseUSD.Title"/><Description resid="Nf.UseUSD.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.usd.16"/><bt:Image size="32" resid="Nf.usd.32"/><bt:Image size="80" resid="Nf.usd.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtUseUSD</FunctionName></Action>
+                    </Item>
+                    <Item id="TC.NfUseGBP">
+                      <Label resid="Nf.UseGBP.Label"/>
+                      <Supertip><Title resid="Nf.UseGBP.Title"/><Description resid="Nf.UseGBP.Tip"/></Supertip>
+                      <Icon><bt:Image size="16" resid="Nf.gbp.16"/><bt:Image size="32" resid="Nf.gbp.32"/><bt:Image size="80" resid="Nf.gbp.80"/></Icon>
+                      <Action xsi:type="ExecuteFunction"><FunctionName>fmtUseGBP</FunctionName></Action>
+                    </Item>
+                  </Items>
+                </Control>
+                <Control xsi:type="Button" id="TC.NfYear">
+                  <Label resid="Nf.Year.Label"/>
+                  <Supertip><Title resid="Nf.Year.Title"/><Description resid="Nf.Year.Tip"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Nf.year.16"/><bt:Image size="32" resid="Nf.year.32"/><bt:Image size="80" resid="Nf.year.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>fmtYear</FunctionName></Action>
+                </Control>
+              </Group>
               <Label resid="Tab.Label"/>
             </CustomTab>
           </ExtensionPoint>
@@ -140,6 +282,33 @@
         <bt:Image id="Icon.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-16.png"/>
         <bt:Image id="Icon.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-32.png"/>
         <bt:Image id="Icon.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/icon-80.png"/>
+        <bt:Image id="Nf.num.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-num-16.png"/>
+        <bt:Image id="Nf.num.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-num-32.png"/>
+        <bt:Image id="Nf.num.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-num-80.png"/>
+        <bt:Image id="Nf.pct.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-pct-16.png"/>
+        <bt:Image id="Nf.pct.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-pct-32.png"/>
+        <bt:Image id="Nf.pct.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-pct-80.png"/>
+        <bt:Image id="Nf.mult.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-mult-16.png"/>
+        <bt:Image id="Nf.mult.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-mult-32.png"/>
+        <bt:Image id="Nf.mult.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-mult-80.png"/>
+        <bt:Image id="Nf.cur.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-cur-16.png"/>
+        <bt:Image id="Nf.cur.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-cur-32.png"/>
+        <bt:Image id="Nf.cur.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-cur-80.png"/>
+        <bt:Image id="Nf.year.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-year-16.png"/>
+        <bt:Image id="Nf.year.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-year-32.png"/>
+        <bt:Image id="Nf.year.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-year-80.png"/>
+        <bt:Image id="Nf.curk.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-curk-16.png"/>
+        <bt:Image id="Nf.curk.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-curk-32.png"/>
+        <bt:Image id="Nf.curk.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-curk-80.png"/>
+        <bt:Image id="Nf.curm.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-curm-16.png"/>
+        <bt:Image id="Nf.curm.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-curm-32.png"/>
+        <bt:Image id="Nf.curm.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-curm-80.png"/>
+        <bt:Image id="Nf.usd.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-usd-16.png"/>
+        <bt:Image id="Nf.usd.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-usd-32.png"/>
+        <bt:Image id="Nf.usd.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-usd-80.png"/>
+        <bt:Image id="Nf.gbp.16" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-gbp-16.png"/>
+        <bt:Image id="Nf.gbp.32" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-gbp-32.png"/>
+        <bt:Image id="Nf.gbp.80" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/assets/nf-gbp-80.png"/>
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Taskpane.Url" DefaultValue="https://serra-verdaguer.github.io/excel-trace-color/addin/taskpane.html"/>
@@ -163,6 +332,28 @@
         <bt:String id="ColorCode.Title" DefaultValue="Color code sheet / selection"/>
         <bt:String id="ColorCodeWorkbook.Label" DefaultValue="Color Workbook"/>
         <bt:String id="ColorCodeWorkbook.Title" DefaultValue="Color code workbook"/>
+        <bt:String id="Nf.Group.Label" DefaultValue="Numbers"/>
+        <bt:String id="Nf.Menu.Label" DefaultValue="Currency"/>
+        <bt:String id="Nf.Number.Label" DefaultValue="Number"/>
+        <bt:String id="Nf.Number.Title" DefaultValue="Number 1,234"/>
+        <bt:String id="Nf.Percent.Label" DefaultValue="Percent"/>
+        <bt:String id="Nf.Percent.Title" DefaultValue="Percent 12.34%"/>
+        <bt:String id="Nf.Multiple.Label" DefaultValue="Multiple"/>
+        <bt:String id="Nf.Multiple.Title" DefaultValue="Multiple 8.50x"/>
+        <bt:String id="Nf.Year.Label" DefaultValue="Year A/E"/>
+        <bt:String id="Nf.Year.Title" DefaultValue="Year 2025 / 2025A / 2025E"/>
+        <bt:String id="Nf.Cur.Label" DefaultValue="Currency 1,234"/>
+        <bt:String id="Nf.Cur.Title" DefaultValue="Currency"/>
+        <bt:String id="Nf.CurK.Label" DefaultValue="Thousands (k)"/>
+        <bt:String id="Nf.CurK.Title" DefaultValue="Currency in thousands"/>
+        <bt:String id="Nf.CurM.Label" DefaultValue="Millions (m)"/>
+        <bt:String id="Nf.CurM.Title" DefaultValue="Currency in millions"/>
+        <bt:String id="Nf.UseEUR.Label" DefaultValue="Use € (euro)"/>
+        <bt:String id="Nf.UseEUR.Title" DefaultValue="Switch to euro"/>
+        <bt:String id="Nf.UseUSD.Label" DefaultValue="Use $ (dollar)"/>
+        <bt:String id="Nf.UseUSD.Title" DefaultValue="Switch to dollar"/>
+        <bt:String id="Nf.UseGBP.Label" DefaultValue="Use £ (pound)"/>
+        <bt:String id="Nf.UseGBP.Title" DefaultValue="Switch to pound"/>
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="GetStarted.Description" DefaultValue="Open the Trace &amp; Color tab on the ribbon to trace precedents/dependents or color-code your model."/>
@@ -173,6 +364,17 @@
         <bt:String id="TraceAllDependents.Tip" DefaultValue="Every cell downstream of the selection, across all levels."/>
         <bt:String id="ColorCode.Tip" DefaultValue="Blue = hard-coded inputs, black = formulas, green = links to other sheets, red = links to other workbooks. Applies to the selection if more than one cell is selected, otherwise the whole sheet. Ctrl+Alt+Shift+C."/>
         <bt:String id="ColorCodeWorkbook.Tip" DefaultValue="Applies the color convention to every sheet in the workbook."/>
+        <bt:String id="Nf.Menu.Tip" DefaultValue="Currency formats: plain, thousands (k), millions (m), and switch between €, $ and £."/>
+        <bt:String id="Nf.Number.Tip" DefaultValue="1,234 · (1,234) · zero as –. Click again for 1 and 2 decimals. Ctrl+Alt+Shift+1"/>
+        <bt:String id="Nf.Percent.Tip" DefaultValue="12.34% · (12.34%). Click again for 1 and 0 decimals. Ctrl+Alt+Shift+2"/>
+        <bt:String id="Nf.Multiple.Tip" DefaultValue="8.50x for EV/EBITDA, MOIC... Click again for 1 decimal. Ctrl+Alt+Shift+3"/>
+        <bt:String id="Nf.Year.Tip" DefaultValue="2025 without separator. Click again: 2025A (actual), 2025E (estimate), FY2025. Ctrl+Alt+Shift+5"/>
+        <bt:String id="Nf.Cur.Tip" DefaultValue="Currency with the symbol chosen in the pane (default €). Click again for 2 decimals. Ctrl+Alt+Shift+4"/>
+        <bt:String id="Nf.CurK.Tip" DefaultValue="Shows 1,234,567 as €1,235k (value unchanged)."/>
+        <bt:String id="Nf.CurM.Tip" DefaultValue="Shows 1,234,567 as €1.2m (value unchanged). Click again for 2 / 0 decimals."/>
+        <bt:String id="Nf.UseEUR.Tip" DefaultValue="Sets € as the currency and applies it."/>
+        <bt:String id="Nf.UseUSD.Tip" DefaultValue="Sets $ as the currency and applies it."/>
+        <bt:String id="Nf.UseGBP.Tip" DefaultValue="Sets £ as the currency and applies it."/>
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

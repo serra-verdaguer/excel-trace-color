@@ -354,6 +354,52 @@
     return notes;
   }
 
+
+  // ---------------------------------------------------------- number formats
+
+  // One-click PE number formats. Codes are in Excel's invariant (en-US)
+  // syntax, which Office.js expects; Excel shows them with the user's own
+  // separators (1.234,5 in Spain). Positives end in "_)" so they line up
+  // with bracketed negatives; zeros show as an en dash.
+  const NUMFMT_DEFAULTS = { currency: "€", currencyAfter: false, zeroDash: true };
+
+  const dec = (d) => (d ? "." + "0".repeat(d) : "");
+
+  function threePart(body, opts) {
+    return `${body}_);(${body})` + (opts.zeroDash ? ';"–"_)' : "");
+  }
+
+  function currencyBody(d, scale, opts) {
+    const num = "#,##0" + dec(d) + (scale === "k" ? "," : scale === "m" ? ",," : "") + (scale ? `"${scale}"` : "");
+    const sym = `"${String(opts.currency).replace(/"/g, "")}"`;
+    return opts.currencyAfter ? `${num}" "${sym}` : `${sym}${num}`;
+  }
+
+  // The variants each button cycles through, in click order.
+  //   ctx.isDate: the active cell holds a date (years are then shown as yyyy)
+  function numberFormatCycle(family, opts, ctx) {
+    opts = Object.assign({}, NUMFMT_DEFAULTS, opts || {});
+    ctx = ctx || {};
+    switch (family) {
+      case "number": return [0, 1, 2].map((d) => threePart("#,##0" + dec(d), opts));
+      case "percent": return [2, 1, 0].map((d) => threePart("0" + dec(d) + "%", opts));
+      case "multiple": return [2, 1].map((d) => threePart("0" + dec(d) + '"x"', opts));
+      case "currency": return [0, 2].map((d) => threePart(currencyBody(d, "", opts), opts));
+      case "currencyK": return [0, 1].map((d) => threePart(currencyBody(d, "k", opts), opts));
+      case "currencyM": return [1, 2, 0].map((d) => threePart(currencyBody(d, "m", opts), opts));
+      case "year": return ctx.isDate ? ["yyyy", 'yyyy"A"', 'yyyy"E"', '"FY"yyyy'] : ["0", '0"A"', '0"E"', '"FY"0'];
+      default: throw new Error("Unknown number format: " + family);
+    }
+  }
+
+  // Next format for a click: the one after the cell's current format if it's
+  // already in this family's cycle, otherwise the first.
+  function nextNumberFormat(family, current, opts, ctx) {
+    const cycle = numberFormatCycle(family, opts, ctx);
+    const i = cycle.indexOf(String(current || "").trim());
+    return cycle[(i + 1) % cycle.length];
+  }
+
   // ---------------------------------------------------------------- utilities
 
   function formatCount(n) {
@@ -383,6 +429,9 @@
     describeFormula,
     a1ToRect,
     orderByFormula,
+    NUMFMT_DEFAULTS,
+    numberFormatCycle,
+    nextNumberFormat,
     formatCount,
     isHexColor,
   };

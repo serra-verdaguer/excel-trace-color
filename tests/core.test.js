@@ -146,3 +146,32 @@ test("orderByFormula follows the formula left to right", () => {
   assert.deepEqual(C.a1ToRect("$B$2:A1"), { r0: 0, c0: 0, r1: 1, c1: 1 });
   assert.deepEqual(C.a1ToRect("C:C"), { r0: 0, c0: 2, r1: 1048575, c1: 2 });
 });
+
+test("number formats: PE defaults", () => {
+  const f = (fam, ctx) => C.numberFormatCycle(fam, {}, ctx);
+  assert.equal(f("number")[0], '#,##0_);(#,##0);"–"_)');
+  assert.equal(f("percent")[0], '0.00%_);(0.00%);"–"_)');
+  assert.equal(f("multiple")[0], '0.00"x"_);(0.00"x");"–"_)');
+  assert.equal(f("currency")[0], '"€"#,##0_);("€"#,##0);"–"_)');
+  assert.equal(f("currencyK")[0], '"€"#,##0,"k"_);("€"#,##0,"k");"–"_)');
+  assert.equal(f("currencyM")[0], '"€"#,##0.0,,"m"_);("€"#,##0.0,,"m");"–"_)');
+  assert.deepEqual(f("year"), ["0", '0"A"', '0"E"', '"FY"0']);
+  assert.equal(f("year", { isDate: true })[1], 'yyyy"A"');
+});
+
+test("number formats: options", () => {
+  const o = { currency: "$", zeroDash: false };
+  assert.equal(C.numberFormatCycle("number", o)[1], "#,##0.0_);(#,##0.0)");
+  assert.equal(C.numberFormatCycle("currency", o)[0], '"$"#,##0_);("$"#,##0)');
+  assert.equal(C.numberFormatCycle("currency", { currencyAfter: true })[0], '#,##0" ""€"_);(#,##0" ""€");"–"_)');
+});
+
+test("number formats: repeated clicks cycle, foreign formats restart", () => {
+  const cyc = C.numberFormatCycle("number");
+  assert.equal(C.nextNumberFormat("number", "General"), cyc[0]);
+  assert.equal(C.nextNumberFormat("number", cyc[0]), cyc[1]);
+  assert.equal(C.nextNumberFormat("number", cyc[1]), cyc[2]);
+  assert.equal(C.nextNumberFormat("number", cyc[2]), cyc[0]);
+  assert.equal(C.nextNumberFormat("percent", cyc[1]), C.numberFormatCycle("percent")[0]);
+  assert.equal(C.nextNumberFormat("year", '0"A"'), '0"E"');
+});

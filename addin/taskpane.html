@@ -54,6 +54,25 @@
     <span>From the sheet: hold <kbd>Ctrl</kbd><kbd>Alt</kbd> + arrows</span>
   </footer>
 
+  <details class="color" id="numfmt">
+    <summary>Number formats</summary>
+    <div class="nf-grid">
+      <button data-nf="number" title="Click again: 1 and 2 decimals">1,234 <small>(1,234)</small></button>
+      <button data-nf="percent" title="Click again: 1 and 0 decimals">12.34%</button>
+      <button data-nf="multiple" title="Click again: 1 decimal">8.50x</button>
+      <button data-nf="year" title="Click again: 2025A, 2025E, FY2025">2025 / A / E</button>
+      <button data-nf="currency" title="Click again: 2 decimals">Currency</button>
+      <button data-nf="currencyK" title="Shows 1,234,567 as 1,235k">Currency k</button>
+      <button data-nf="currencyM" title="Shows 1,234,567 as 1.2m">Currency m</button>
+    </div>
+    <div class="nf-opts">
+      <label>Currency <select id="nfCurrency"><option>€</option><option>$</option><option>£</option><option>CHF</option><option>SEK</option><option>NOK</option><option>DKK</option></select></label>
+      <label><input type="checkbox" id="nfAfter" /> after the number</label>
+      <label><input type="checkbox" id="nfZero" /> show zeros as –</label>
+    </div>
+    <p class="nf-hint">Same button again = next variant. Shortcuts: Ctrl+Alt+Shift+1 number · 2 % · 3 x · 4 currency · 5 year (Mac: ⌘⌥⇧).</p>
+  </details>
+
   <details class="color">
     <summary>Color code settings</summary>
     <div class="color-head">
@@ -76,6 +95,7 @@
   <script src="lib/core.js"></script>
   <script src="lib/colorcode.js"></script>
   <script src="lib/trace.js"></script>
+  <script src="lib/numfmt.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
